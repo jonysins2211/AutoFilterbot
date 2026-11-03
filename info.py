@@ -241,6 +241,17 @@ STAR_PREMIUM_PLANS = {
     75: "60day",
 }
 
+# Web premium buying plans {days: {name, price (INR), duration}}.
+# Used by the /activate-plan page and the admin Accept/Reject callbacks.
+# Payment details come from the existing QR_CODE / OWNER_UPI_ID env vars above
+# and proof photos go to the existing PREMIUM_LOGS channel — set those env
+# vars for the web flow to work; nothing here hardcodes a payment identity.
+PREMIUM_WEB_PLANS = {
+    30: {"name": "1 Month", "price": 25, "duration": "1 month"},
+    60: {"name": "2 Months", "price": 50, "duration": "2 months"},
+    180: {"name": "6 Months", "price": 150, "duration": "6 months"},
+}
+
 
 # ==============================================================================
 # 9. SERVER, STREAMING & WEB SETTINGS

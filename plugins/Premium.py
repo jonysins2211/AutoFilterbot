@@ -3,7 +3,7 @@ from pyrogram import enums
 import logging
 import datetime
 from Script import script 
-from info import ADMINS, PREMIUM_LOGS, STAR_PREMIUM_PLANS, SUBSCRIPTION, TZ
+from info import ADMINS, PREMIUM_LOGS, PREMIUM_WEB_PLANS, STAR_PREMIUM_PLANS, SUBSCRIPTION, TZ
 from utils import get_seconds, temp
 from database.users_chats_db import db 
 import asyncio
@@ -291,3 +291,53 @@ async def successful_premium_payment(client, message):
         await message.reply("✅ Thank You For Your Payment! (Error Logging Details)")
 
 
+
+
+# ── Web premium payment verification (ported from Mawa-movies) ─────────────
+# Admin Accept/Reject buttons attached by POST /submit-payment in
+# plugins/route.py to the proof photo sent to PREMIUM_LOGS.
+# Accept reuses Auto's own premium storage: db.update_user() with an
+# expiry_time (the same helper /add_premium and Star payments use), so an
+# accepted web payment grants exactly the same premium as other methods,
+# and check_expired_premium() in plugins/__init__.py expires it normally.
+
+@Client.on_callback_query(filters.regex(r"^(accept|reject)_payment-\d+-\d+$") & filters.user(ADMINS))
+async def verify_web_payment(client, callback_query: CallbackQuery):
+    try:
+        action, user_id, days = callback_query.data.replace("_payment", "").split("-")
+        user_id = int(user_id)
+        days = int(days)
+        plan = PREMIUM_WEB_PLANS.get(days)
+        if not plan:
+            return await callback_query.answer("Invalid premium plan.", show_alert=True)
+
+        if action == "reject":
+            await callback_query.answer("Payment rejected.", show_alert=True)
+            await callback_query.message.edit_caption(
+                (callback_query.message.caption or "") + "\n\n❌ Rejected by admin.",
+                reply_markup=None,
+            )
+            await client.send_message(user_id, f"❌ Your payment proof for {plan['name']} was rejected. Please contact support and submit a valid screenshot.")
+            return
+
+        seconds = await get_seconds(plan["duration"])
+        if seconds <= 0:
+            seconds = int(days) * 86400
+
+        time_zone = datetime.datetime.now(TZ)
+        current_time = time_zone.strftime("%d-%m-%Y | %I:%M:%S %p")
+        expiry_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
+        await db.update_user({"id": user_id, "expiry_time": expiry_time})
+        expiry_str = expiry_time.astimezone(TZ).strftime("%d-%m-%Y | %I:%M:%S %p")
+        user = await client.get_users(user_id)
+
+        await callback_query.answer("Premium activated.", show_alert=True)
+        await callback_query.message.edit_caption(
+            (callback_query.message.caption or "") + f"\n\n✅ Accepted by admin.\n⌛ Expiry: {expiry_str}",
+            reply_markup=None,
+        )
+        await client.send_message(user_id, f"🎉 Premium activated successfully!\n\n📦 Plan: {plan['name']}\n💰 Price: ₹{plan['price']}\n⌛ Expiry: {expiry_str}")
+        await client.send_message(PREMIUM_LOGS, f"#Web_Premium_Activated\n\n👤 User: {user.mention}\n⚡ User ID: <code>{user_id}</code>\n📦 Plan: {plan['name']}\n💰 Price: ₹{plan['price']}\n⏳ Joining: {current_time}\n⌛ Expiry: {expiry_str}")
+    except Exception as e:
+        logger.exception("Error verifying web premium payment: %s", e)
+        await callback_query.answer("Failed to process payment. Check bot logs.", show_alert=True)
