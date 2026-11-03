@@ -346,8 +346,7 @@ async def start(client, message):
                         buttons = [[
                             InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
                         ],[
-                            InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload)
-                        ],[
+                            InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload),
                             InlineKeyboardButton(text="💎 Buy Premium: Remove Ads", callback_data="premium_info")
                         ]]
                         reply_markup=InlineKeyboardMarkup(buttons)
