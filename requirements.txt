@@ -22,3 +22,5 @@ rapidfuzz
 
 # Git-based Packages
 git+https://github.com/DreamXBotz/IMDBKit.git@main
+httpx
+imdbinfo

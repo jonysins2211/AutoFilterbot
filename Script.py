@@ -511,3 +511,11 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 • /remove_fsub - ʀᴇᴍᴏᴠᴇ ᴄᴜꜱᴛᴏᴍ ꜰᴏʀᴄᴇ ꜱᴜʙ ᴄʜᴀɴɴᴇʟ.
 • /reset_group - ʀᴇꜱᴇᴛ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ.
 • /details - ᴄʜᴇᴄᴋ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ."""
+
+    DAILY_FILE_LIMIT_TXT = """<b>⚠️ Today limit is over!</b>
+
+You have used today's free file limit. Buy premium for unlimited access."""
+
+    DAILY_LINK_LIMIT_TXT = """<b>⚠️ Today limit is over!</b>
+
+You have used today's free stream/download link limit. Buy premium for unlimited access."""

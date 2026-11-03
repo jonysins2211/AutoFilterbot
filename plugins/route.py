@@ -9,7 +9,9 @@ from dreamxbotz.Bot import multi_clients, work_loads
 from dreamxbotz.server.exceptions import FIleNotFound, InvalidHash
 from dreamxbotz.util.custom_dl import ByteStreamer
 from dreamxbotz.util.render_template import render_page
+from urllib.parse import quote
 import info
+from database.users_chats_db import db
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,50 @@ async def watch_handler(request: web.Request):
     except Exception as e:
         logger.critical(e.with_traceback(None))
         raise web.HTTPInternalServerError(text=str(e))
+
+def masked_link_page(title, message, action_html=""):
+    return f"""
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{title}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; }}
+            .card {{ max-width: 520px; margin: 12vh auto; padding: 28px; background: #111827; border-radius: 18px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.35); }}
+            h1 {{ margin-top: 0; font-size: 28px; }}
+            p {{ color: #cbd5e1; line-height: 1.6; }}
+            a.button {{ display: inline-block; margin-top: 18px; padding: 13px 22px; border-radius: 999px; color: #fff; background: #2563eb; text-decoration: none; font-weight: 700; }}
+        </style>
+    </head>
+    <body><main class="card"><h1>{title}</h1><p>{message}</p>{action_html}</main></body>
+    </html>
+    """
+
+
+@routes.get(r"/r/{hash_id}", allow_head=True)
+async def masked_redirect_handler(request: web.Request):
+    # Test1-style one-time masked link. Registered BEFORE the /{path} catch-all below.
+    hash_id = request.match_info["hash_id"]
+    if not re.fullmatch(r"[a-fA-F0-9]{32}", hash_id):
+        return web.Response(text=masked_link_page("Link Not Found", "This link is invalid or was never created. Please request a new link from the bot."), content_type="text/html", status=404)
+    masked_link = await db.get_masked_link(hash_id)
+    if not masked_link:
+        return web.Response(text=masked_link_page("Link Not Found", "This link is invalid or was never created. Please request a new link from the bot."), content_type="text/html", status=404)
+    if masked_link.get("used"):
+        return web.Response(text=masked_link_page("Link Expired", "This is a one-time link and it has already been used. Please request a new one from the bot."), content_type="text/html", status=410)
+    user_agent = request.headers.get("User-Agent", "").lower()
+    if "telegram" in user_agent:
+        current_url = f"{request.scheme}://{request.host}{request.rel_url}"
+        intent_url = f"intent://{request.host}{request.rel_url}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url={quote(current_url, safe='')};end"
+        action = f'<a class="button" href="{intent_url}">Open in Chrome</a>'
+        return web.Response(text=masked_link_page("Open in Chrome", "For verification, open this link in an external Chrome browser instead of Telegram's in-app browser.", action), content_type="text/html")
+    claimed_link = await db.mark_masked_link_used(hash_id)
+    if not claimed_link:
+        return web.Response(text=masked_link_page("Link Expired", "This is a one-time link and it has already been used. Please request a new one from the bot."), content_type="text/html", status=410)
+    raise web.HTTPFound(claimed_link["real_url"])
+
 
 @routes.get(r"/{path:\S+}", allow_head=True)
 async def stream_handler(request: web.Request):

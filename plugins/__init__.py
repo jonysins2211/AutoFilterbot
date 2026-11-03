@@ -1,5 +1,7 @@
 from aiohttp import web
 from .route import routes
+from .website import routes as website_routes
+from .miniapp import routes as miniapp_routes
 from asyncio import sleep 
 from datetime import datetime
 from database.users_chats_db import db
@@ -13,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 async def web_server():
     web_app = web.Application(client_max_size=30000000)
+    # Order matters: website (/) and miniapp (/app) first, then Auto's stream
+    # routes. Auto's catch-all /{path} in route.py would otherwise swallow them.
+    web_app.add_routes(website_routes)
+    web_app.add_routes(miniapp_routes)
     web_app.add_routes(routes)
     return web_app
 

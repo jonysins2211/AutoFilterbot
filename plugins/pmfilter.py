@@ -1,5 +1,6 @@
 import logging
 from utils import LimitedDict, get_random_mix_id, get_size, is_subscribed, is_req_subscribed, group_setting_buttons, get_poster, get_posterx, temp, get_settings, save_group_settings, get_cap, imdb, is_check_admin, extract_request_content, clean_filename, generate_season_variations, clean_search_text, get_settings_text
+from database.daily_limits import claim_daily_stream_link
 from rapidfuzz import process
 from dreamxbotz.util.file_properties import get_name, get_hash
 from urllib.parse import quote_plus
@@ -865,6 +866,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 return await query.answer(script.ALRT_TXT.format(query.from_user.first_name), show_alert=True)
         except Exception:
             pass
+        # NOTE: daily file limit is NOT counted here — this only redirects to /start;
+        # the actual delivery in plugins/commands.py start() counts it, so search
+        # listing / clicking a result never consumes the limit.
         await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file_id}")
 
     elif query.data.startswith("sendfiles"):
@@ -1129,6 +1133,15 @@ async def cb_handler(client: Client, query: CallbackQuery):
         _, file_id = DreamxData.split(":")
         try:
             user_id = query.from_user.id
+            # Daily stream-link limit: only a NEW generation counts; a repeat of the
+            # same file the same day returns allowed=True without incrementing.
+            if not await claim_daily_stream_link(user_id, file_id):
+                await query.answer("Today stream/download link limit is over. Buy premium for unlimited access.", show_alert=True)
+                try:
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium: Remove Ads", callback_data="premium_info")]]))
+                except Exception:
+                    pass
+                return
             username = query.from_user.mention
             log_msg = await client.send_cached_media(chat_id=BIN_CHANNEL, file_id=file_id,)
             fileName = quote_plus(get_name(log_msg))

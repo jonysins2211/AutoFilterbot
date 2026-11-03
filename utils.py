@@ -4,6 +4,7 @@ import re
 import os
 import random
 import string
+import secrets
 from info import ULTRA_FAST_MODE, MAX_LIST_ELM, BAD_WORDS, LONG_IMDB_DESCRIPTION, IS_VERIFY, MAX_B_TN, TUTORIAL, TUTORIAL_2, TUTORIAL_3, LOG_CHANNEL, TMDB_ON_SEARCH
 from imdbkit import IMDBKit # pyrefly: ignore 
 import asyncio
@@ -14,6 +15,7 @@ from typing import Union
 from Script import script
 from database.users_chats_db import db
 from shortzy import Shortzy
+from pymongo.errors import DuplicateKeyError
 from plugins.Dreamxfutures.Imdbposter import get_movie_detailsx
 
 
@@ -435,7 +437,26 @@ async def get_shortlink(link, grp_id, is_second_shortener=False, is_third_shorte
         link = await shortzy.convert(link)
     except Exception:
         link = await shortzy.get_quick_link(link)
-    return link
+    # Test1-style masked shortlink: hide the shortener behind the bot's own /r/ link.
+    # Deliberate deviation from Test1 (which raises on DB failure): fall back to the
+    # direct shortlink so verification never breaks on a masked-link DB error.
+    try:
+        return await create_masked_shortlink(link)
+    except Exception as e:
+        logger.warning(f"Masked shortlink failed, using direct shortlink: {e}")
+        return link
+
+
+async def create_masked_shortlink(real_url):
+    for _ in range(5):
+        hash_id = secrets.token_hex(16)
+        try:
+            await db.create_masked_link(hash_id, real_url)
+            from info import URL
+            return f"{URL.rstrip('/')}/r/{hash_id}"
+        except DuplicateKeyError:
+            continue
+    raise RuntimeError("Unable to generate a unique masked shortlink token")
 
 async def get_settings(group_id):
     try:

@@ -27,6 +27,8 @@ class Database:
         self.botcol = self.db.bot_settings
         self.misc = self.db.misc
         self.verify_id = self.db.verify_id 
+        self.masked_links = self.db.masked_links  # Test1-style masked shortlinks
+        self.daily_usage = self.db.daily_usage  # daily file / stream-link counters
         self.codes = self.db.codes
         self.filename_col = self.db.filename
         self.movie_updates = self.db.movie_updates
@@ -329,6 +331,25 @@ class Database:
     async def create_verify_id(self, user_id: int, hash):
         res = {"user_id": user_id, "hash":hash, "verified":False}
         return await self.verify_id.insert_one(res)
+
+    async def create_masked_link(self, hash_id: str, real_url: str):
+        doc = {
+            "_id": hash_id,
+            "hash_id": hash_id,
+            "real_url": real_url,
+            "used": False,
+            "created_at": datetime.datetime.utcnow(),
+        }
+        return await self.masked_links.insert_one(doc)
+
+    async def get_masked_link(self, hash_id: str):
+        return await self.masked_links.find_one({"_id": hash_id})
+
+    async def mark_masked_link_used(self, hash_id: str):
+        return await self.masked_links.find_one_and_update(
+            {"_id": hash_id, "used": False},
+            {"$set": {"used": True, "used_at": datetime.datetime.utcnow()}},
+        )
 
     async def get_verify_id_info(self, user_id: int, hash):
         return await self.verify_id.find_one({"user_id": user_id, "hash": hash})

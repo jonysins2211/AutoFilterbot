@@ -25,6 +25,7 @@ from info import (
     TZ
 )
 from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, clean_filename, get_random_mix_id
+from database.daily_limits import claim_daily_file, send_daily_limit_note
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +256,14 @@ async def start(client, message):
             await auto_filter(client, message)
             raise StopPropagation
 
+        if len(message.command) == 2 and message.command[1].startswith('wf_'):
+            # Link from the public website: short token -> real file_id, then normal file flow runs
+            # (so verification, force-subscribe, premium and daily file limit still apply).
+            from plugins.website import resolve_token
+            _fid = await resolve_token(message.command[1][3:])
+            if not _fid:
+                return await message.reply("❌ This link expired. Open the website again and pick the file.")
+            message.command[1] = f"file_{message.from_user.id}_{_fid}"
         data = message.command[1]
         try:
             _, grp_id, file_id = data.split("_", 2)
@@ -384,6 +393,8 @@ async def start(client, message):
                             f_caption = clean_filename(files1.file_name)
                     if f_caption is None:
                         f_caption = f"{clean_filename(files1.file_name)}"
+                    if not await claim_daily_file(message.from_user.id):
+                        return await send_daily_limit_note(message, 'file')
                     btn = await stream_buttons(message.from_user.id, file_id)
                     if files1.file_type == 'video':
                         msg = await client.send_video(
@@ -428,6 +439,8 @@ async def start(client, message):
                     if COVERX:
                         cover = details[0].cover if details[0].cover else None
                     is_video = details[0].file_type == 'video'
+                if not await claim_daily_file(message.from_user.id):
+                    return await send_daily_limit_note(message, 'file')
                 btn = await stream_buttons(message.from_user.id, file_id)
                 if is_video:
                     msg = await client.send_video(
@@ -486,6 +499,8 @@ async def start(client, message):
                 f_caption = clean_filename(files.file_name)
         if f_caption is None:
             f_caption = clean_filename(files.file_name)
+        if not await claim_daily_file(message.from_user.id):
+            return await send_daily_limit_note(message, 'file')
         btn = await stream_buttons(message.from_user.id, file_id)
         if files.file_type == 'video':
             msg = await client.send_video(

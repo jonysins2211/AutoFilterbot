@@ -122,6 +122,10 @@ CACHE_TIME = int(environ.get('CACHE_TIME', 300))                 # In-memory cac
 DELETE_TIME = int(environ.get("DELETE_TIME", "300"))              # Auto-delete message timer (seconds)
 MAX_LIST_ELM = int(environ.get("MAX_LIST_ELM") or 10) or None     # Search list items per page
 MAX_B_TN = environ.get("MAX_B_TN", "5")                           # Max buttons per row
+# Daily limits (ported feature, NEW — not in Test1).
+# Edit these numbers in info.py only; no limit is hard-coded elsewhere.
+DAILY_FILE_LIMIT = 10  # files per verified non-premium user per day; premium unlimited
+DAILY_STREAM_LINK_LIMIT = 3  # new stream/download link generations per verified non-premium user per day; repeat of the same file the same day does not count again
 
 # Feature Toggles
 AUTO_FFILTER = is_enabled(environ.get('AUTO_FFILTER', "True"), True)
@@ -265,6 +269,9 @@ if HAS_SSL:
     URL = f"https://{FQDN}/"
 else:
     URL = f"http://{FQDN}/" if NO_PORT else f"http://{FQDN}:{PORT}/"
+
+# Telegram Mini App base URL (ported from Test1). Defaults to this bot's own URL.
+MINIAPP_URL = environ.get('MINIAPP_URL', URL).rstrip('/')
 
 # Operational Performance Parameters
 WORKERS = int(environ.get('WORKERS', '4'))
