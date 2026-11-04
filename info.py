@@ -124,7 +124,7 @@ MAX_LIST_ELM = int(environ.get("MAX_LIST_ELM") or 10) or None     # Search list 
 MAX_B_TN = environ.get("MAX_B_TN", "7")                           # Max buttons per row
 # Daily limits (ported feature, NEW — not in Test1).
 # Edit these numbers in info.py only; no limit is hard-coded elsewhere.
-DAILY_FILE_LIMIT = 10  # files per verified non-premium user per day; premium unlimited
+DAILY_FILE_LIMIT = 2  # files per verified non-premium user per day; premium unlimited
 DAILY_STREAM_LINK_LIMIT = 3  # new stream/download link generations per verified non-premium user per day; repeat of the same file the same day does not count again
 
 # Feature Toggles
