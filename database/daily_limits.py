@@ -141,9 +141,10 @@ async def claim_daily_stream_link(user_id, file_id, collection=None):
 
 async def send_daily_limit_note(message, kind="file"):
     """Send the limit-over note with a premium button. Returns the sent message."""
+    from pyrogram import enums
     from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from Script import script
 
     text = script.DAILY_FILE_LIMIT_TXT if kind == "file" else script.DAILY_LINK_LIMIT_TXT
     markup = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium: Remove Ads", callback_data="premium_info")]])
-    return await message.reply(text, reply_markup=markup, parse_mode="html")
+    return await message.reply(text, reply_markup=markup, parse_mode=enums.ParseMode.HTML)
