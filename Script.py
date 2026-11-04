@@ -1,17 +1,13 @@
 class script(object):
-    START_TXT = """<b><u>🚩 ᴊᴀɪ ꜱʜʀɪ ʀᴀᴍ 🚩</u></b>
+    START_TXT = """<b><b>ʜᴇʏ {}, {}</b>
 
-<b>ʜᴇʏ {}, {}</b>
-
-<b>🤖 ɪ ᴀᴍ <a href=https://t.me/{}>{}</a>, ᴛʜᴇ ᴍᴏꜱᴛ ᴘᴏᴡᴇʀꜰᴜʟ ᴀᴜᴛᴏ ꜰɪʟᴛᴇʀ ʙᴏᴛ ᴡɪᴛʜ ᴘʀᴇᴍɪᴜᴍ ꜰᴇᴀᴛᴜʀᴇꜱ.</b>
+<b>🤖 ɪ ᴀᴍ ᴛʜᴇ ᴍᴏꜱᴛ ᴘᴏᴡᴇʀꜰᴜʟʟ ᴍᴇᴅɪᴀ ᴘʀᴏᴠɪᴅᴇʀ ʙᴏᴛ. ɪ ᴄᴀɴ ᴘʀᴏᴠɪᴅᴇ ᴀʟʟ ʟᴀᴛᴇꜱᴛ ᴍᴏᴠɪᴇꜱ ᴀɴᴅ ꜱᴇʀɪᴇꜱ. ᴊᴜꜱᴛ ꜱᴇɴᴅ ᴍᴇ ᴛʜᴇ ᴄᴏʀʀᴇᴄᴛ ɴᴀᴍᴇ</b>
 """
 
 
-    GSTART_TXT = """<b>🚩 ᴊᴀɪ ꜱʜʀɪ ʀᴀᴍ 🚩</b>
+    GSTART_TXT = """<b>ʜᴇʏ {},</b>
 
-<b>ʜᴇʏ {},</b>
-
-<b>🤖 ɪ ᴀᴍ <a href=https://t.me/{}>{}</a>, ᴛʜᴇ ᴍᴏꜱᴛ ᴘᴏᴡᴇʀꜰᴜʟ ᴀᴜᴛᴏ ꜰɪʟᴛᴇʀ ʙᴏᴛ ᴡɪᴛʜ ᴘʀᴇᴍɪᴜᴍ ꜰᴇᴀᴛᴜʀᴇꜱ.</b>"""
+<b>🤖 ɪ ᴀᴍ ᴛʜᴇ ᴍᴏꜱᴛ ᴘᴏᴡᴇʀꜰᴜʟʟ ᴍᴇᴅɪᴀ ᴘʀᴏᴠɪᴅᴇʀ ʙᴏᴛ. ɪ ᴄᴀɴ ᴘʀᴏᴠɪᴅᴇ ᴀʟʟ ʟᴀᴛᴇꜱᴛ ᴍᴏᴠɪᴇꜱ ᴀɴᴅ ꜱᴇʀɪᴇꜱ. ᴊᴜꜱᴛ ꜱᴇɴᴅ ᴍᴇ ᴛʜᴇ ᴄᴏʀʀᴇᴄᴛ ɴᴀᴍᴇ.</b>"""
 
     
     HELP_TXT = """<b>
@@ -135,7 +131,7 @@ Nᴀᴍᴇ - {}
     CUDNT_FND = SPELLING_ERROR_TXT = """<b>‼️ ꜱᴘᴇʟʟɪɴɢ ᴍɪꜱᴛᴀᴋᴇ ʙʀᴏ!</b>  
 <b>😊 ɴᴏ ᴡᴏʀʀɪᴇꜱ — ᴄʜᴏᴏꜱᴇ ᴛʜᴇ ᴄᴏʀʀᴇᴄᴛ ᴏɴᴇ ʙᴇʟᴏᴡ 👇</b>
 
-<blockquote>👇 नीचे दिए गए विकल्पों में से movie के नाम की सही spelling चुनें</blockquote>"""
+<blockquote>👇Choose the correct spelling of the movie's name from the options given below</blockquote>"""
 
 
     DEL_MSG = """⚠️ ᴛʜɪꜱ ᴍᴏᴠɪᴇ ꜰɪʟᴇ/ᴠɪᴅᴇᴏ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u><code>{}</code></u></b>
@@ -159,7 +155,7 @@ Nᴀᴍᴇ - {}
     
     MVE_NT_FND = NOT_FOUND_TXT = """<b>😌 ᴛʜɪꜱ ᴍᴏᴠɪᴇ ɪꜱ ɴᴏᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴍʏ ᴅᴀᴛᴀʙᴀꜱᴇ.</b>
 
-<blockquote>😌 यह ᴍᴏᴠɪᴇ मुझे ᴍᴇʀᴇ ᴅᴀᴛᴀʙᴀꜱᴇ में नहीं मिली।</blockquote>"""
+<blockquote>😌 I couldn't find this Movie in my database</blockquote>"""
 
     ALREADY_AVAILABLE_TXT = """<b>ʜᴇʏ {},
     
@@ -269,8 +265,9 @@ Nᴀᴍᴇ : {}
 
 Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
     
-    CAPTION = """<b><a href="https://t.me/dreamxbotz">{file_name}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/dreamxbotz">[ ᴅʀᴇᴀᴍxʙᴏᴛᴢ ]</a></b>"""
+    CAPTION = """<b><a href="https://t.me/Movie_loverzz">{file_caption}</a></b>\n\n<b>⚜️ Powered By : <a href="https://t.me/Movie_loverzz">[ @Movie_Loverzz ]</a></b>"""
 
+    
     
     MOVIE_UPDATE_NOTIFY_TXT = """
 <b><a href={poster_url}>📥</a><a href={imdb_url}>New {tag} Added</a></b>
@@ -278,7 +275,6 @@ Mᴇꜱꜱᴀɢᴇ : <b>{}</b>"""
 <blockquote>✨ ᴛɪᴛʟᴇ : <code>{filename} {year}</code>
 
 🎭 ɢᴇɴʀᴇs : <b>{genres}</b>
-📺 ᴏᴛᴛ        : <b>{ott}</b>
 🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
 🎧 ᴀᴜᴅɪᴏ    : <b>{language}</b>
 🔥 ʀᴀᴛɪɴɢ   : <b>{rating}</b>
@@ -315,14 +311,13 @@ sʜᴏᴡɴ ɪɴ : {remaining_seconds} <i>sᴇᴄ</i>⚡️
     PREMIUM_TEXT = """<blockquote>🎖️ <b>ᴀᴠᴀɪʟᴀʙʟᴇ ᴘʟᴀɴs</b></blockquote>
 
 
-◉ 07 ᴅᴀʏꜱ - 10 ₹  / 10 ꜱᴛᴀʀ
-◉ 15 ᴅᴀʏꜱ - 20 ₹  / 20 ꜱᴛᴀʀ
-◉ 30 ᴅᴀʏꜱ - 40 ₹  / 40 ꜱᴛᴀʀ
-◉ 45 ᴅᴀʏꜱ - 55 ₹  / 55 ꜱᴛᴀʀ
-◉ 60 ᴅᴀʏꜱ - 75 ₹  / 75 ꜱᴛᴀʀ
+◉ 1 Month - 25 ₹  
+◉ 2 Months - 50 ₹ 
+◉ 3 Months- 75 ₹  
+◉ 6 Months - 150 ₹  
 
 •─────•─────────•─────•
-🏷️ <a href='https://t.me/dreamxbotz'>ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ᴘʀᴏᴏꜰ</a>
+🏷️ <a href='https://t.me/mladminbot'>ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ᴘʀᴏᴏꜰ</a>
 
 ‼️ ᴍᴜꜱᴛ ꜱᴇɴᴅ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ ᴀꜰᴛᴇʀ ᴘᴀʏᴍᴇɴᴛ.
 ‼️ ᴀꜰᴛᴇʀ ꜱᴇɴᴅɪɴɢ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ ɢɪᴠᴇ ᴜꜱ ꜱᴏᴍᴇᴛɪᴍᴇꜱ ᴛᴏ ᴀᴅᴅ ʏᴏᴜ ɪɴ ᴘʀᴇᴍɪᴜᴍ ʟɪꜱᴛ."""
@@ -353,9 +348,10 @@ sʜᴏᴡɴ ɪɴ : {remaining_seconds} <i>sᴇᴄ</i>⚡️
 <b>ᴛʜᴀɴᴋ ʏᴏᴜ ꜰᴏʀ ᴜsɪɴɢ ᴏᴜʀ sᴇʀᴠɪᴄᴇ 😊</b>  
 <b>ᴄʟɪᴄᴋ ᴏɴ /plan ᴛᴏ ᴄʜᴇᴄᴋ ᴏᴜʀ ᴏᴛʜᴇʀ ᴘʟᴀɴs.</b>
 
-<blockquote>ᴀᴀᴘᴋᴀ <b>ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss</b> ʜᴀᴛᴀ ᴅɪʏᴀ ɢᴀʏᴀ ʜᴀɪ।  
-ʜᴀᴍᴀʀɪ sᴇᴠᴀ ᴋᴀ ᴜᴘʏᴏɢ ᴋᴀʀɴᴇ ᴋᴇ ʟɪʏᴇ ᴅʜᴀɴʏᴀᴠᴀᴀᴅ 🥳  
-ʜᴀᴍᴀʀɪ ᴀɴʏᴀ ʏᴏᴊɴᴀᴏɴ ᴋɪ ᴊᴀᴀɴᴄʜ ᴋᴀʀɴᴇ ᴋᴇ ʟɪʏᴇ <b>/plan</b> ᴘᴀʀ ᴋʟɪᴄᴋ ᴋᴀʀᴇɪɴ।</blockquote>
+<blockquote>ᴀᴀᴘᴋᴀ <b>⚠️ మీ ప్రీమియం సబ్‌స్క్రిప్షన్ గడువు ముగిసింది!
+మీ ప్రీమియం యాక్సెస్ ప్రస్తుతం ముగిసింది. మా సేవలను ఉపయోగించినందుకు ధన్యవాదాలు ❤️
+✨ ప్రీమియం ఫీచర్లను మళ్లీ ఆస్వాదించడానికి మా అందుబాటులో ఉన్న ప్లాన్‌లను తెలుసుకోండి.
+👉 /plan పై క్లిక్ చేసి మీకు నచ్చిన ప్లాన్‌ను ఎంచుకోండి.</blockquote>
 """
 
     
@@ -424,17 +420,22 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
 
     VERIFY_COMPLETE_TEXT = """<b><i>👋 ʜᴇʏ {},
 
-ʏᴏᴜ ʜᴀᴠᴇ ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴛʜᴇ 1ꜱᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ✓
 
-ɴᴏᴡ ʏᴏᴜ ʜᴀᴠᴇ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ɴᴇxᴛ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ.</i></b>"""
+You have Successfully Verified ✓
+
+Now u have Direct ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛɪʟʟ ɴᴇxᴛ 12 hours,Direct Files.
+
+Note:- You Have Now Daily 10 - 15 Free Files Limit & You can Generate stream & Fast Download Links upto 3 Links"""
+    
 
     SECOND_VERIFICATION_TEXT = """<b><i>👋 ʜᴇʏ {},
 
-📌 ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ, ᴛᴀᴘ ᴏɴ ᴛʜᴇ ᴠᴇʀɪꜰʏ ʟɪɴᴋ ᴀɴᴅ ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇss ꜰᴏʀ ᴛɪʟʟ ɴᴇxᴛ ᴠᴇʀɪғɪᴄᴀᴛɪᴏɴ.
+📌 ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ ᴛᴏᴅᴀʏ, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ ᴠᴇʀɪꜰʏ & ɢᴇᴛ ᴜɴʟɪᴍɪᴛᴇᴅ ᴀᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛɪʟʟ ɴᴇxᴛ 12 hours,Direct Files..
 
-#ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ:- 2/3 ✓
+📌 shortner (verify token) లింక్ ఎలా ఓపన్ చేయాలి ఈ వీడియో చుడండి @ML_Files
 
-ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ꜰɪʟᴇs ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ (ɴᴏ ɴᴇᴇᴅ ᴛᴏ ᴠᴇʀɪꜰʏ).</i></b>"""
+ɪꜰ ʏᴏᴜ ᴡᴀɴᴛ ᴅɪʀᴇᴄᴛ ꜰɪʟᴇs ᴛʜᴇɴ ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ (ɴᴏ ɴᴇᴇᴅ ᴛᴏ ᴠᴇʀɪꜰʏ) Click on Buy Premium</i></b>"""
+    
 
     SECOND_VERIFY_COMPLETE_TEXT = """<b><i>👋 ʜᴇʏ {},
     
