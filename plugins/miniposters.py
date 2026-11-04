@@ -21,7 +21,7 @@ import httpx
 
 import info as _info
 
-OMDB_API_KEY = os.environ.get("OMDB_API_KEY", "")  # set in deployment env, never in repo
+OMDB_API_KEY = getattr(_info, "OMDB_API_KEY", "") or os.environ.get("OMDB_API_KEY", "")  # from info.py, env overrides
 TMDB_API_KEY = getattr(_info, "TMDB_API_KEY", "") or os.environ.get("TMDB_API_KEY", "")
 
 try:
