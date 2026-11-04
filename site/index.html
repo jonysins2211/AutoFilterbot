@@ -263,7 +263,7 @@ footer a:hover{text-decoration:underline}
 
     <div class="wrap">
       <div class="filters" id="filters" role="group" aria-label="Filters"></div>
-      <div id="sections"></div>
+      <div class="filters" id="secFilters" role="group" aria-label="Sections"></div>
       <div class="sechead" id="sechead"><h2 id="sectitle">Latest uploads</h2><span id="secsub"></span></div>
       <div class="grid" id="grid" aria-live="polite"></div>
       <div class="state" id="state" hidden></div>
@@ -301,12 +301,12 @@ footer a:hover{text-decoration:underline}
     more: $('#more'), moreBtn: $('#moreBtn'), sentinel: $('#sentinel'), title: $('#sectitle'), sub: $('#secsub'),
     browse: $('#browse'), movie: $('#movie'), mbody: $('#mbody'), backdrop: $('#backdrop'), toast: $('#toast'),
     tgFoot: $('#tgFoot'), tgMenu: $('#tgMenu'), theme: $('#theme'), back: $('#back'),
-    sections: $('#sections'), sechead: $('#sechead'), menuBtn: $('#menuBtn'), menuPanel: $('#menuPanel'), menuSecs: $('#menuSecs'), menuHome: $('#menuHome'),
+    secFilters: $('#secFilters'), sechead: $('#sechead'), menuBtn: $('#menuBtn'), menuPanel: $('#menuPanel'), menuSecs: $('#menuSecs'), menuHome: $('#menuHome'),
   };
 
   const QUALITY = ['480p', '720p', '1080p', '4K'];
   const LANGS = ['Tamil', 'Telugu', 'Hindi', 'Malayalam', 'Kannada', 'English'];
-  const state = { query: '', lang: '', quality: '', next: null, loading: false, seq: 0, movies: new Map(), total: 0, bot: '', scroll: 0, from: 'home', secLoaded: false, secLoading: false };
+  const state = { query: '', lang: '', quality: '', next: null, loading: false, seq: 0, movies: new Map(), total: 0, bot: '', scroll: 0, from: 'home', activeSec: '', secData: null, secPromise: null };
 
   /* ── helpers ── */
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -360,8 +360,7 @@ footer a:hover{text-decoration:underline}
   function showState(html) { el.state.innerHTML = html; el.state.hidden = !html; }
 
   async function load(append) {
-    if (!append && !effectiveQuery()) { showSections(true); loadSections(); return; }
-    showSections(false);
+    if (!append) clearSection();
     if (state.loading && append) return;
     syncView();
     const seq = ++state.seq; state.loading = true;
@@ -402,34 +401,66 @@ footer a:hover{text-decoration:underline}
     }
   }
 
-  /* ── home sections ── */
-  function showSections(on) {
-    el.sections.hidden = !on; el.sechead.hidden = on; el.grid.hidden = on; el.more.hidden = on;
-    if (on) showState('');
+  /* ── section buttons (below the quality filters) ──
+     Home stays as before: only Latest uploads. A section loads only when
+     its button (or menu entry) is clicked, into the normal grid. */
+  const SECTIONS = [
+    ['latest-movies', 'Latest Movies'], ['latest-series', 'Latest Web Series'],
+    ['popular', 'Popular'], ['recently-added', 'Recently Added'],
+    ['top-rated', 'Top IMDb Rated'], ['action', 'Action'],
+    ['sci-fi', 'Sci-Fi'], ['horror', 'Horror'], ['thriller', 'Thriller'],
+  ];
+  function renderSecChips() {
+    el.secFilters.innerHTML = SECTIONS.map(([id, t]) => `<button class="chip" data-sec="${id}" aria-pressed="${state.activeSec === id}">${esc(t)}</button>`).join('');
   }
-  function renderSections(sections) {
-    el.sections.innerHTML = sections.map(s => `<section class="secrow" id="sec-${esc(s.id)}"><div class="sechead"><h2>${esc(s.title)}</h2><span>${s.movies.length} titles</span></div><div class="rowscroll">${s.movies.map(cardHTML).join('')}</div></section>`).join('');
-    wireImgs(el.sections);
+  function clearSection() {
+    if (!state.activeSec) return;
+    state.activeSec = '';
+    renderSecChips();
+  }
+  async function loadSection(id) {
+    if (state.activeSec === id) { clearSection(); load(false); return; }
+    state.seq++; state.activeSec = id; state.next = null; state.loading = false;
+    renderSecChips();
+    el.grid.innerHTML = skeletons(12); showState(''); el.more.hidden = true;
+    const title = (SECTIONS.find(s => s[0] === id) || [id, id])[1];
+    el.title.textContent = title; el.sub.textContent = 'Loading…';
+    el.sechead.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try {
+      if (!state.secData) {
+        if (!state.secPromise) state.secPromise = api('/api/sections').then(d => { state.secData = d; state.secPromise = null; });
+        await state.secPromise;
+        if (state.activeSec !== id) return;
+      }
+      const sec = (state.secData.sections || []).find(s => s.id === id);
+      if (!sec || !sec.movies.length) {
+        el.grid.innerHTML = '';
+        showState(`<div class="em">🎞️</div><div class="big">No titles in this section yet</div><div>Try another section, or check back after new files are added.</div>`);
+        el.sub.textContent = '';
+        return;
+      }
+      el.grid.innerHTML = sec.movies.map(cardHTML).join('');
+      wireImgs(el.grid);
+      el.sub.textContent = `${sec.movies.length} titles`;
+    } catch (e) {
+      state.secPromise = null;
+      el.grid.innerHTML = '';
+      showState(`<div class="em">⚠️</div><div class="big">Couldn’t load this section</div><div>${esc(e.message)}</div><button class="btn pri" id="retrySec">Try again</button>`);
+      const r = $('#retrySec'); if (r) r.onclick = () => loadSection(id);
+      el.sub.textContent = '';
+    }
+  }
+  el.secFilters.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    loadSection(b.dataset.sec);
+  });
+  function renderMenuSecs() {
     el.menuSecs.innerHTML = '';
-    sections.forEach(s => {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = s.title;
-      b.onclick = () => { closeMenu(); const t = document.getElementById('sec-' + s.id); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    SECTIONS.forEach(([id, t]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+      b.onclick = () => { closeMenu(); loadSection(id); };
       el.menuSecs.append(b);
     });
-  }
-  async function loadSections() {
-    if (state.secLoaded || state.secLoading) return;
-    state.secLoading = true;
-    el.sections.innerHTML = `<div class="state"><div class="big">Loading sections…</div></div>`;
-    try {
-      const j = await api('/api/sections');
-      state.secLoaded = true;
-      if (!j.sections.length) { el.sections.innerHTML = ''; return; }
-      renderSections(j.sections);
-    } catch (e) {
-      el.sections.innerHTML = `<div class="state"><div class="em">⚠️</div><div class="big">Couldn’t load sections</div><div>${esc(e.message)}</div><button class="btn pri" id="retrySec">Try again</button></div>`;
-      const r = $('#retrySec'); if (r) r.onclick = () => { state.secLoading = false; loadSections(); };
-    } finally { state.secLoading = false; }
   }
 
   /* ── menu ── */
@@ -437,7 +468,7 @@ footer a:hover{text-decoration:underline}
   el.menuBtn.onclick = e => { e.stopPropagation(); const open = el.menuPanel.hidden; el.menuPanel.hidden = !open; el.menuBtn.setAttribute('aria-expanded', String(open)); };
   document.addEventListener('click', e => { if (!e.target.closest('.menu-wrap')) closeMenu(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
-  el.menuHome.onclick = () => { closeMenu(); go('#/'); load(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  el.menuHome.onclick = () => { closeMenu(); clearSection(); go('#/'); load(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   /* ── filters ── */
   function renderFilters() {
@@ -492,7 +523,6 @@ footer a:hover{text-decoration:underline}
   }
   const movieRequest = ref => api('/api/movie', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: ref.k, qs: ref.q }) });
   ['pointerenter', 'touchstart'].forEach(ev => el.grid.addEventListener(ev, e => { const c = e.target.closest && e.target.closest('.card[href]'); if (c) prefetch(c); }, { passive: true, capture: true }));
-  ['pointerenter', 'touchstart'].forEach(ev => el.sections.addEventListener(ev, e => { const c = e.target.closest && e.target.closest('.card[href]'); if (c) prefetch(c); }, { passive: true, capture: true }));
 
   async function showMovie(ref) {
     const seq = ++state.seq; state.loading = false;
@@ -621,7 +651,7 @@ footer a:hover{text-decoration:underline}
 
   /* ── boot ── */
   (async function init() {
-    renderFilters();
+    renderFilters(); renderSecChips(); renderMenuSecs();
     try { const c = await api('/api/config'); state.bot = c.bot || ''; } catch {}
     const link = tgLink(); el.tgFoot.href = link; el.tgMenu.href = link;
     route();
