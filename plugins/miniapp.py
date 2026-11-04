@@ -243,90 +243,6 @@ async def _latest_pool(limit):
     return [f for batch in results for f in batch]
 
 
-# ── Genre scan (whole DB, not just the recent pool) ────────────────────────
-# The DB stores no genre, so a genre title can only be recognised after a
-# poster/detail lookup. Scanning every distinct title on every request would
-# be slow and burn poster-API quota, so the older-title scan below:
-#   * walks the DB newest-first, in batches, past the recent pool,
-#   * stops once every genre has 12 titles, or after 3000 files / 300 titles,
-#   * caches its older titles for 6 hours (recent titles are always fresh,
-#     because they come from the recent pool in sections_core first).
-GENRE_DEFS = [
-    ("action", "Action", ("action",)),
-    ("sci-fi", "Sci-Fi", ("sci-fi", "science fiction")),
-    ("horror", "Horror", ("horror",)),
-    ("thriller", "Thriller", ("thriller",)),
-]
-_GENRE_SCAN_BATCH = 150
-_GENRE_SCAN_MAX_FILES = 3000
-_GENRE_SCAN_MAX_TITLES = 300
-_GENRE_CACHE_TTL = 6 * 3600
-_genre_cache = {"at": 0.0, "movies": {}}   # genre id -> [public movie dicts]
-
-
-async def _scan_batch(offset, limit):
-    tasks = [Media.find({}).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit)]
-    if MULTIPLE_DB:
-        tasks.append(Media2.find({}).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit))
-    results = await asyncio.gather(*tasks)
-    return [f for batch in results for f in batch]
-
-
-def _public_movie(m):
-    return {"mkey": m["mkey"], "key": m["key"], "keys": m["keys"], "q": m["q"], "qs": m["qs"],
-            "title": m["title"], "year": m["year"], "kind": m["kind"],
-            "thumb": m["thumb"], "rating": m["rating"]}
-
-
-async def _scan_genre_titles():
-    """Older genre titles, newest-first. Returns {genre id: [public movies]}."""
-    if _genre_cache["movies"] and time.time() - _genre_cache["at"] < _GENRE_CACHE_TTL:
-        return _genre_cache["movies"]
-    found = {gid: [] for gid, _, _ in GENRE_DEFS}
-    seen_keys, scanned, offset = set(), 0, 0
-    try:
-        while scanned < _GENRE_SCAN_MAX_FILES and len(seen_keys) < _GENRE_SCAN_MAX_TITLES \
-                and not all(len(v) >= SECTION_LIMIT for v in found.values()):
-            files = await _scan_batch(offset, _GENRE_SCAN_BATCH)
-            if not files:
-                break
-            offset += _GENRE_SCAN_BATCH
-            scanned += len(files)
-            groups = {}
-            for f in files:
-                p = parse_name(f.file_name)
-                if not p["is_video"] or p["key"] in seen_keys:
-                    continue
-                seen_keys.add(p["key"])
-                groups[p["key"]] = p
-            if not groups:
-                continue
-            raw_infos = await asyncio.gather(
-                *(get_info(p["title"], p["year"], p["kind"], detail=True) for p in groups.values()),
-                return_exceptions=True,
-            )
-            for p, info in zip(groups.values(), raw_infos):
-                if not isinstance(info, dict):
-                    continue
-                genres = [str(g).lower() for g in (info.get("genres") or [])]
-                if not genres:
-                    continue
-                pub = {"mkey": p["key"], "key": p["key"], "keys": [p["key"]],
-                       "q": p["title"], "qs": [p["title"]],
-                       "title": info.get("title") or p["title"],
-                       "year": info.get("year") or p["year"], "kind": p["kind"],
-                       "thumb": info.get("thumb"), "rating": info.get("rating")}
-                for gid, _, names in GENRE_DEFS:
-                    if len(found[gid]) < SECTION_LIMIT and any(any(n in g for g in genres) for n in names):
-                        found[gid].append(pub)
-    except Exception:
-        logger.exception("genre scan failed; sections will use recent titles only")
-        return found
-    _genre_cache["at"] = time.time()
-    _genre_cache["movies"] = found
-    return found
-
-
 async def sections_core():
     """One pooled pass over the newest files, split into home sections.
 
@@ -338,11 +254,8 @@ async def sections_core():
     - Popular = most files in the recent pool (series with many episodes /
       titles with many quality variants rank first), rating as tie-break.
     - Top IMDb Rated = highest IMDb rating first.
-    - Genre rows = recent-pool titles first, then older titles from a
-      newest-first whole-DB scan (see _scan_genre_titles), so a genre row
-      is not limited to recently added titles. Genre rows need detail=True
-      lookups, because grid lookups usually return no genres; results are
-      cached 24h, so this costs once a day.
+    - Genre rows need detail=True lookups, because grid lookups usually
+      return no genres; results are cached 24h, so this costs once a day.
     """
     files = await _latest_pool(SECTION_POOL)
     groups, counts = {}, {}
@@ -395,30 +308,16 @@ async def sections_core():
         return any(any(n in g for g in m["_genres"]) for n in names)
 
     rated = [m for m in movies if m["rating"]]
-    # Genre rows: recent titles first, then older titles from the whole-DB
-    # scan (deduped by key), so recently added titles stay at the front and
-    # older titles fill the row up to SECTION_LIMIT.
-    older_genres = await _scan_genre_titles()
-    def genre_rows(gid, names):
-        rows, seen = [m for m in movies if has_genre(m, *names)], set()
-        for m in rows:
-            seen.add(m["key"])
-        for pub in older_genres.get(gid, []):
-            if pub["key"] not in seen and len(rows) < SECTION_LIMIT:
-                rows.append(pub)
-                seen.add(pub["key"])
-        return rows
-
     defs = [
         ("latest-movies", "Latest Movies", [m for m in movies if m["kind"] == "movie"]),
         ("latest-series", "Latest Web Series", [m for m in movies if m["kind"] == "series"]),
         ("popular", "Popular", sorted(movies, key=lambda m: (-m["_count"], -(m["rating"] or 0)))),
         ("recently-added", "Recently Added", list(movies)),
         ("top-rated", "Top IMDb Rated", sorted(rated, key=lambda m: -(m["rating"] or 0))),
-        ("action", "Action", genre_rows("action", ("action",))),
-        ("sci-fi", "Sci-Fi", genre_rows("sci-fi", ("sci-fi", "science fiction"))),
-        ("horror", "Horror", genre_rows("horror", ("horror",))),
-        ("thriller", "Thriller", genre_rows("thriller", ("thriller",))),
+        ("action", "Action", [m for m in movies if has_genre(m, "action")]),
+        ("sci-fi", "Sci-Fi", [m for m in movies if has_genre(m, "sci-fi", "science fiction")]),
+        ("horror", "Horror", [m for m in movies if has_genre(m, "horror")]),
+        ("thriller", "Thriller", [m for m in movies if has_genre(m, "thriller")]),
     ]
     sections = []
     for sid, title, rows in defs:
@@ -426,7 +325,9 @@ async def sections_core():
         if not rows:
             continue
         sections.append({"id": sid, "title": title, "movies": [
-            m if "mkey" in m and "_year" not in m else _public_movie(m) for m in rows]})
+            {"mkey": m["mkey"], "key": m["key"], "keys": m["keys"], "q": m["q"], "qs": m["qs"],
+             "title": m["title"], "year": m["year"], "kind": m["kind"],
+             "thumb": m["thumb"], "rating": m["rating"]} for m in rows]})
     return {"ok": True, "sections": sections}
 
 
