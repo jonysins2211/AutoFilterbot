@@ -229,6 +229,108 @@ async def search_core(query, offset=0):
     }
 
 
+# ── Home sections ──────────────────────────────────────────────────────────
+SECTION_LIMIT = 12        # cards per section row
+SECTION_POOL = 200        # newest files read to build all sections in one pass
+
+
+async def _latest_pool(limit):
+    """Newest indexed files (both DBs, same pattern as _latest_files)."""
+    tasks = [Media.find({}).sort("$natural", -1).limit(limit).to_list(length=limit)]
+    if MULTIPLE_DB:
+        tasks.append(Media2.find({}).sort("$natural", -1).limit(limit).to_list(length=limit))
+    results = await asyncio.gather(*tasks)
+    return [f for batch in results for f in batch]
+
+
+async def sections_core():
+    """One pooled pass over the newest files, split into home sections.
+
+    Rows (in order): Latest Movies, Latest Web Series, Popular, Recently
+    Added, Top IMDb Rated, Action, Sci-Fi, Horror, Thriller. Empty rows are
+    dropped, so the front ends only render rows that actually have titles.
+
+    Notes on definitions (no view/download counter exists in the DB):
+    - Popular = most files in the recent pool (series with many episodes /
+      titles with many quality variants rank first), rating as tie-break.
+    - Top IMDb Rated = highest IMDb rating first.
+    - Genre rows need detail=True lookups, because grid lookups usually
+      return no genres; results are cached 24h, so this costs once a day.
+    """
+    files = await _latest_pool(SECTION_POOL)
+    groups, counts = {}, {}
+    for f in files:
+        p = parse_name(f.file_name)
+        if not p["is_video"]:
+            continue
+        if p["key"] not in groups:
+            groups[p["key"]] = p
+        counts[p["key"]] = counts.get(p["key"], 0) + 1
+    if not groups:
+        return {"ok": True, "sections": []}
+
+    raw_infos = await asyncio.gather(
+        *(get_info(p["title"], p["year"], p["kind"], detail=True) for p in groups.values()),
+        return_exceptions=True,
+    )
+    movies, by_ident = [], {}
+    for p, info in zip(groups.values(), raw_infos):
+        info = info if isinstance(info, dict) else {}
+        ident = info.get("imdb_id") or (f"t:{_norm(info['title'])}" if info.get("source") and info.get("title") else "")
+        target = next((m for m in by_ident.get(ident, []) if _years_compatible(m["_year"], p["year"])), None) if ident else None
+        if target:
+            if p["key"] not in target["keys"] and len(target["keys"]) < MAX_KEYS:
+                target["keys"].append(p["key"])
+            if p["title"] not in target["qs"] and len(target["qs"]) < MAX_KEYS:
+                target["qs"].append(p["title"])
+            target["_count"] += counts[p["key"]]
+            if not target["thumb"] and info.get("thumb"):
+                target["thumb"] = info["thumb"]
+            continue
+        m = {
+            "mkey": f"{ident}|{p['year']}" if ident else p["key"],
+            "key": p["key"], "keys": [p["key"]],
+            "q": p["title"], "qs": [p["title"]],
+            "title": info.get("title") or p["title"],
+            "year": info.get("year") or p["year"],
+            "kind": p["kind"],
+            "thumb": info.get("thumb"),
+            "rating": info.get("rating"),
+            "_year": p["year"],
+            "_count": counts[p["key"]],
+            "_genres": [str(g).lower() for g in (info.get("genres") or [])],
+        }
+        movies.append(m)
+        if ident:
+            by_ident.setdefault(ident, []).append(m)
+
+    def has_genre(m, *names):
+        return any(any(n in g for g in m["_genres"]) for n in names)
+
+    rated = [m for m in movies if m["rating"]]
+    defs = [
+        ("latest-movies", "Latest Movies", [m for m in movies if m["kind"] == "movie"]),
+        ("latest-series", "Latest Web Series", [m for m in movies if m["kind"] == "series"]),
+        ("popular", "Popular", sorted(movies, key=lambda m: (-m["_count"], -(m["rating"] or 0)))),
+        ("recently-added", "Recently Added", list(movies)),
+        ("top-rated", "Top IMDb Rated", sorted(rated, key=lambda m: -(m["rating"] or 0))),
+        ("action", "Action", [m for m in movies if has_genre(m, "action")]),
+        ("sci-fi", "Sci-Fi", [m for m in movies if has_genre(m, "sci-fi", "science fiction")]),
+        ("horror", "Horror", [m for m in movies if has_genre(m, "horror")]),
+        ("thriller", "Thriller", [m for m in movies if has_genre(m, "thriller")]),
+    ]
+    sections = []
+    for sid, title, rows in defs:
+        rows = rows[:SECTION_LIMIT]
+        if not rows:
+            continue
+        sections.append({"id": sid, "title": title, "movies": [
+            {"mkey": m["mkey"], "key": m["key"], "keys": m["keys"], "q": m["q"], "qs": m["qs"],
+             "title": m["title"], "year": m["year"], "kind": m["kind"],
+             "thumb": m["thumb"], "rating": m["rating"]} for m in rows]})
+    return {"ok": True, "sections": sections}
+
+
 @routes.post("/app/api/search")
 async def api_search(request):
     auth, resp = await _auth(request)
@@ -239,6 +341,19 @@ async def api_search(request):
         data = await search_core(body.get("query"), body.get("offset", 0))
     except Exception:
         logger.exception("miniapp search failed")
+        return _err("Database is busy. Try again.", 500)
+    return web.json_response(data)
+
+
+@routes.post("/app/api/sections")
+async def api_sections(request):
+    auth, resp = await _auth(request)
+    if resp is not None:
+        return resp
+    try:
+        data = await sections_core()
+    except Exception:
+        logger.exception("miniapp sections failed")
         return _err("Database is busy. Try again.", 500)
     return web.json_response(data)
 

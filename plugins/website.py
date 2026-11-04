@@ -23,7 +23,7 @@ from collections import defaultdict, deque
 from aiohttp import web
 
 from database.ia_filterdb import db            # the primary Mongo database
-from plugins.miniapp import search_core, movie_core
+from plugins.miniapp import search_core, sections_core, movie_core
 from utils import temp
 
 logger = logging.getLogger(__name__)
@@ -134,6 +134,20 @@ async def api_search(request):
         data = await search_core(request.query.get("q", ""), request.query.get("offset", 0))
     except Exception:
         logger.exception("site search failed")
+        return _err("Database is busy. Try again.", 500)
+    resp = web.json_response(data, headers={"Cache-Control": "public, max-age=60"})
+    resp.enable_compression()
+    return resp
+
+
+@routes.get("/api/sections")
+async def api_sections(request):
+    if _limited(request):
+        return _err("Too many requests, slow down a little", 429)
+    try:
+        data = await sections_core()
+    except Exception:
+        logger.exception("site sections failed")
         return _err("Database is busy. Try again.", 500)
     resp = web.json_response(data, headers={"Cache-Control": "public, max-age=60"})
     resp.enable_compression()

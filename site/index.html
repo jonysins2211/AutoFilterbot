@@ -104,6 +104,21 @@ h1.title em{font-style:normal;color:var(--accent-text)}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .fsep{flex:none;width:1px;background:var(--line);margin:6px 4px}
 
+/* ── menu ── */
+.menu-wrap{position:relative}
+.menu-panel{position:absolute;right:0;top:48px;z-index:50;min-width:230px;padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow)}
+.menu-panel a,.menu-panel button{display:block;width:100%;text-align:left;padding:10px 14px;border-radius:9px;font:500 14.5px/1.4 var(--body)}
+.menu-panel a:hover,.menu-panel button:hover{background:var(--surface2)}
+.menu-panel .msep{height:1px;background:var(--line);margin:6px 8px}
+.menu-panel .mnote{padding:10px 14px;color:var(--muted);font-size:13.5px}
+
+/* ── section rows ── */
+.rowscroll{display:flex;gap:clamp(12px,2vw,20px);overflow-x:auto;padding:4px 2px 14px;scrollbar-width:none}
+.rowscroll::-webkit-scrollbar{display:none}
+.rowscroll .card{flex:none;width:160px}
+@media (max-width:420px){.rowscroll .card{width:148px}}
+.secrow{scroll-margin-top:76px}
+
 /* ── grid ── */
 main{flex:1}
 .sechead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:26px 0 16px}
@@ -213,10 +228,17 @@ footer a:hover{text-decoration:underline}
       <button class="icon-btn" id="theme" aria-label="Toggle light / dark theme" title="Theme">
         <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
       </button>
-      <a class="btn pri" id="tgTop" href="https://t.me/" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3L18.6 19.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5.1 9.3-8.4c.4-.4-.1-.6-.6-.2L6.3 12.9 1.4 11.4c-1.1-.3-1.1-1 .2-1.5L20.5 2.6c.9-.3 1.7.2 1.4 1.7z"/></svg>
-        <span class="lbl">Open in Telegram</span>
-      </a>
+      <div class="menu-wrap">
+        <button class="icon-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" title="Menu">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="menu-panel" id="menuPanel" hidden>
+          <button type="button" id="menuHome">Home</button>
+          <div id="menuSecs"><div class="mnote">Loading sections…</div></div>
+          <div class="msep"></div>
+          <a id="tgMenu" href="https://t.me/" target="_blank" rel="noopener">Open in Telegram</a>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -241,7 +263,8 @@ footer a:hover{text-decoration:underline}
 
     <div class="wrap">
       <div class="filters" id="filters" role="group" aria-label="Filters"></div>
-      <div class="sechead"><h2 id="sectitle">Latest uploads</h2><span id="secsub"></span></div>
+      <div id="sections"></div>
+      <div class="sechead" id="sechead"><h2 id="sectitle">Latest uploads</h2><span id="secsub"></span></div>
       <div class="grid" id="grid" aria-live="polite"></div>
       <div class="state" id="state" hidden></div>
       <div class="more" id="more" hidden><button class="btn ghost" id="moreBtn">Load more</button></div>
@@ -277,12 +300,13 @@ footer a:hover{text-decoration:underline}
     form: $('#form'), hform: $('#hform'), filters: $('#filters'), grid: $('#grid'), state: $('#state'),
     more: $('#more'), moreBtn: $('#moreBtn'), sentinel: $('#sentinel'), title: $('#sectitle'), sub: $('#secsub'),
     browse: $('#browse'), movie: $('#movie'), mbody: $('#mbody'), backdrop: $('#backdrop'), toast: $('#toast'),
-    tgTop: $('#tgTop'), tgFoot: $('#tgFoot'), theme: $('#theme'), back: $('#back'),
+    tgFoot: $('#tgFoot'), tgMenu: $('#tgMenu'), theme: $('#theme'), back: $('#back'),
+    sections: $('#sections'), sechead: $('#sechead'), menuBtn: $('#menuBtn'), menuPanel: $('#menuPanel'), menuSecs: $('#menuSecs'), menuHome: $('#menuHome'),
   };
 
   const QUALITY = ['480p', '720p', '1080p', '4K'];
   const LANGS = ['Tamil', 'Telugu', 'Hindi', 'Malayalam', 'Kannada', 'English'];
-  const state = { query: '', lang: '', quality: '', next: null, loading: false, seq: 0, movies: new Map(), total: 0, bot: '', scroll: 0, from: 'home' };
+  const state = { query: '', lang: '', quality: '', next: null, loading: false, seq: 0, movies: new Map(), total: 0, bot: '', scroll: 0, from: 'home', secLoaded: false, secLoading: false };
 
   /* ── helpers ── */
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -336,6 +360,8 @@ footer a:hover{text-decoration:underline}
   function showState(html) { el.state.innerHTML = html; el.state.hidden = !html; }
 
   async function load(append) {
+    if (!append && !effectiveQuery()) { showSections(true); loadSections(); return; }
+    showSections(false);
     if (state.loading && append) return;
     syncView();
     const seq = ++state.seq; state.loading = true;
@@ -375,6 +401,43 @@ footer a:hover{text-decoration:underline}
       if (seq === state.seq) state.loading = false;
     }
   }
+
+  /* ── home sections ── */
+  function showSections(on) {
+    el.sections.hidden = !on; el.sechead.hidden = on; el.grid.hidden = on; el.more.hidden = on;
+    if (on) showState('');
+  }
+  function renderSections(sections) {
+    el.sections.innerHTML = sections.map(s => `<section class="secrow" id="sec-${esc(s.id)}"><div class="sechead"><h2>${esc(s.title)}</h2><span>${s.movies.length} titles</span></div><div class="rowscroll">${s.movies.map(cardHTML).join('')}</div></section>`).join('');
+    wireImgs(el.sections);
+    el.menuSecs.innerHTML = '';
+    sections.forEach(s => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = s.title;
+      b.onclick = () => { closeMenu(); const t = document.getElementById('sec-' + s.id); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      el.menuSecs.append(b);
+    });
+  }
+  async function loadSections() {
+    if (state.secLoaded || state.secLoading) return;
+    state.secLoading = true;
+    el.sections.innerHTML = `<div class="state"><div class="big">Loading sections…</div></div>`;
+    try {
+      const j = await api('/api/sections');
+      state.secLoaded = true;
+      if (!j.sections.length) { el.sections.innerHTML = ''; return; }
+      renderSections(j.sections);
+    } catch (e) {
+      el.sections.innerHTML = `<div class="state"><div class="em">⚠️</div><div class="big">Couldn’t load sections</div><div>${esc(e.message)}</div><button class="btn pri" id="retrySec">Try again</button></div>`;
+      const r = $('#retrySec'); if (r) r.onclick = () => { state.secLoading = false; loadSections(); };
+    } finally { state.secLoading = false; }
+  }
+
+  /* ── menu ── */
+  function closeMenu() { el.menuPanel.hidden = true; el.menuBtn.setAttribute('aria-expanded', 'false'); }
+  el.menuBtn.onclick = e => { e.stopPropagation(); const open = el.menuPanel.hidden; el.menuPanel.hidden = !open; el.menuBtn.setAttribute('aria-expanded', String(open)); };
+  document.addEventListener('click', e => { if (!e.target.closest('.menu-wrap')) closeMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  el.menuHome.onclick = () => { closeMenu(); go('#/'); load(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   /* ── filters ── */
   function renderFilters() {
@@ -429,6 +492,7 @@ footer a:hover{text-decoration:underline}
   }
   const movieRequest = ref => api('/api/movie', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: ref.k, qs: ref.q }) });
   ['pointerenter', 'touchstart'].forEach(ev => el.grid.addEventListener(ev, e => { const c = e.target.closest && e.target.closest('.card[href]'); if (c) prefetch(c); }, { passive: true, capture: true }));
+  ['pointerenter', 'touchstart'].forEach(ev => el.sections.addEventListener(ev, e => { const c = e.target.closest && e.target.closest('.card[href]'); if (c) prefetch(c); }, { passive: true, capture: true }));
 
   async function showMovie(ref) {
     const seq = ++state.seq; state.loading = false;
@@ -559,7 +623,7 @@ footer a:hover{text-decoration:underline}
   (async function init() {
     renderFilters();
     try { const c = await api('/api/config'); state.bot = c.bot || ''; } catch {}
-    const link = tgLink(); el.tgTop.href = link; el.tgFoot.href = link;
+    const link = tgLink(); el.tgFoot.href = link; el.tgMenu.href = link;
     route();
     load(false);
   })();
