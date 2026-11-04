@@ -263,7 +263,7 @@
       <div class="chips" id="langChips" role="group" aria-label="Language"></div>
     </div>
 
-    <div id="sections" class="pad"></div>
+    <div id="secChips" class="chips pad" role="group" aria-label="Sections"></div>
 
     <div class="bar pad"><span id="summary" aria-live="polite"></span></div>
     <ul id="grid" class="grid pad"></ul>
@@ -355,7 +355,7 @@
   };
 
   // ── State ──────────────────────────────────────────────────────────────
-  const state = { query: '', quality: '', lang: '', next: null, loading: false, seq: 0, view: 'home', secLoaded: false, secLoading: false };
+  const state = { query: '', quality: '', lang: '', next: null, loading: false, seq: 0, view: 'home', activeSec: '', secData: null, secPromise: null };
   const selected = new Map();    // file id -> {name, key}
   const sent = new Set();        // file ids requested this session
   const movies = [];             // movies currently in the grid
@@ -373,7 +373,7 @@
     msummary: $('msummary'), selectAll: $('selectAll'), clearSel: $('clearSel'),
     files: $('files'), mstate: $('mstate'), lightbox: $('lightbox'), lightImg: $('lightImg'),
     dock: $('dock'), count: $('count'), send: $('send'), toast: $('toast'),
-    sections: $('sections'), menuBtn: $('menuBtn'), menuPanel: $('menuPanel'), menuSecs: $('menuSecs'), menuHome: $('menuHome'),
+    secChips: $('secChips'), menuBtn: $('menuBtn'), menuPanel: $('menuPanel'), menuSecs: $('menuSecs'), menuHome: $('menuHome'),
   };
 
   // ── API ────────────────────────────────────────────────────────────────
@@ -433,51 +433,77 @@
   const fmtRating = (r) => Number(r).toFixed(1);
   const wrapSeps = (s) => s.replace(/([._-])/g, '$1​');    // allow wrapping at separators; text stays complete
 
-  // ── HOME sections (below the language chips) ────────────────────────
-  function showSections(on) {
-    el.sections.hidden = !on; el.grid.hidden = on; el.more.hidden = true;
-    if (on) { el.state.hidden = true; el.summary.textContent = 'Browse sections'; }
-  }
-  function renderSections(sections) {
-    el.sections.replaceChildren();
-    sections.forEach((s) => {
-      const sec = document.createElement('section'); sec.className = 'secrow'; sec.id = 'sec-' + s.id;
-      const head = document.createElement('div'); head.className = 'sechead';
-      const h = document.createElement('h2'); h.textContent = s.title;
-      const n = document.createElement('span'); n.textContent = s.movies.length + ' titles';
-      head.append(h, n);
-      const row = document.createElement('ul'); row.className = 'rowscroll';
-      s.movies.forEach((m) => row.append(buildCard(m)));
-      sec.append(head, row); el.sections.append(sec);
+  // ── Section buttons (below the language chips) ──────────────────────
+  // Home stays as before: only Latest uploads. A section loads only when
+  // its button (or menu entry) is clicked, into the normal grid. The
+  // genre scan backend (whole-DB, recent first) already serves both the
+  // site and the Mini App through /api/sections, so no extra backend
+  // change is needed here.
+  const SECTIONS = [
+    ['latest-movies', 'Latest Movies'], ['latest-series', 'Latest Web Series'],
+    ['popular', 'Popular'], ['recently-added', 'Recently Added'],
+    ['top-rated', 'Top IMDb Rated'], ['action', 'Action'],
+    ['sci-fi', 'Sci-Fi'], ['horror', 'Horror'], ['thriller', 'Thriller'],
+  ];
+  function renderSecChips() {
+    el.secChips.replaceChildren();
+    SECTIONS.forEach(([id, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = t;
+      b.setAttribute('aria-pressed', state.activeSec === id ? 'true' : 'false');
+      b.onclick = () => loadSection(id);
+      el.secChips.append(b);
     });
+  }
+  function clearSection() {
+    if (!state.activeSec) return;
+    state.activeSec = '';
+    renderSecChips();
+  }
+  function renderMenuSecs() {
     el.menuSecs.replaceChildren();
-    sections.forEach((s) => {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = s.title;
-      b.onclick = () => { closeMenu(); const t = document.getElementById('sec-' + s.id); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    SECTIONS.forEach(([id, t]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+      b.onclick = () => { closeMenu(); loadSection(id); };
       el.menuSecs.append(b);
     });
   }
-  async function loadSections() {
-    if (state.secLoaded || state.secLoading) return;
-    state.secLoading = true;
-    el.sections.replaceChildren();
-    showState(el.state, 'Loading sections…', ''); el.state.hidden = true;
-    el.summary.textContent = 'Loading sections…';
+  async function loadSection(id) {
+    if (state.activeSec === id) { clearSection(); load(false); return; }
+    if (ctrl) ctrl.abort();
+    state.seq++; state.activeSec = id; state.next = null; state.loading = false;
+    renderSecChips();
+    el.state.hidden = true; el.more.hidden = true;
+    el.summary.textContent = 'Loading…';
+    skeletonGrid();
+    const title = (SECTIONS.find((s) => s[0] === id) || [id, id])[1];
     try {
-      const d = await api('/api/sections', {});
-      state.secLoaded = true;
-      if (!d.sections.length) { el.sections.replaceChildren(); return; }
-      renderSections(d.sections);
-      el.summary.textContent = 'Browse sections';
+      if (!state.secData) {
+        if (!state.secPromise) state.secPromise = api('/api/sections', {}).then((d) => { state.secData = d; state.secPromise = null; });
+        await state.secPromise;
+        if (state.activeSec !== id) return;
+      }
+      const sec = (state.secData.sections || []).find((s) => s.id === id);
+      if (!sec || !sec.movies.length) {
+        el.grid.replaceChildren(); el.summary.textContent = '';
+        showState(el.state, `No titles in ${title} yet`, 'Try another section, or check back after new files are added.');
+        return;
+      }
+      el.grid.replaceChildren();
+      sec.movies.forEach((m) => el.grid.append(buildCard(m)));
+      el.summary.textContent = `${title} · ${sec.movies.length} titles`;
+      syncSelection();
     } catch (e) {
-      showState(el.state, 'Could not load sections', e.message, () => { state.secLoading = false; loadSections(); });
-    } finally { state.secLoading = false; }
+      state.secPromise = null;
+      el.grid.replaceChildren(); el.summary.textContent = '';
+      showState(el.state, 'Could not load this section', e.message, () => loadSection(id));
+    }
   }
   function closeMenu() { el.menuPanel.hidden = true; el.menuBtn.setAttribute('aria-expanded', 'false'); }
   el.menuBtn.onclick = (e) => { e.stopPropagation(); const open = el.menuPanel.hidden; el.menuPanel.hidden = !open; el.menuBtn.setAttribute('aria-expanded', String(open)); };
   document.addEventListener('click', (e) => { if (!e.target.closest('.menu-wrap')) closeMenu(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-  el.menuHome.onclick = () => { closeMenu(); window.scrollTo({ top: 0, behavior: 'smooth' }); load(false); };
+  el.menuHome.onclick = () => { closeMenu(); clearSection(); window.scrollTo({ top: 0, behavior: 'smooth' }); load(false); };
 
   // ── HOME: poster grid ──────────────────────────────────────────────────
   function skeletonGrid() {
@@ -508,8 +534,7 @@
 
   async function load(append) {
     if (append && (state.loading || state.next === null)) return;
-    if (!append && !effectiveQuery()) { showSections(true); loadSections(); return; }
-    showSections(false);
+    if (!append) clearSection();
     const mySeq = append ? state.seq : ++state.seq;
     if (!append) {
       if (ctrl) ctrl.abort();
@@ -585,6 +610,7 @@
   }
   buildChips($('qualityChips'), QUALITIES, 'quality');
   buildChips($('langChips'), LANGUAGES, 'lang');
+  renderSecChips(); renderMenuSecs();
 
   // ── MOVIE view ─────────────────────────────────────────────────────────
   function setPoster(url, title) {
