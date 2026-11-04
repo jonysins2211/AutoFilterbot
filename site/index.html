@@ -118,6 +118,9 @@ h1.title em{font-style:normal;color:var(--accent-text)}
 .rowscroll .card{flex:none;width:160px}
 @media (max-width:420px){.rowscroll .card{width:148px}}
 .secrow{scroll-margin-top:76px}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:20px 0 10px}
+.pager span{color:var(--muted);font-size:14px;min-width:90px;text-align:center}
+.btn:disabled{opacity:.5;cursor:default;transform:none}
 
 /* ── grid ── */
 main{flex:1}
@@ -266,6 +269,7 @@ footer a:hover{text-decoration:underline}
       <div class="filters" id="secFilters" role="group" aria-label="Sections"></div>
       <div class="sechead" id="sechead"><h2 id="sectitle">Latest uploads</h2><span id="secsub"></span></div>
       <div class="grid" id="grid" aria-live="polite"></div>
+      <div class="pager" id="secPager" hidden><button class="btn ghost" id="prevBtn" type="button">← Prev</button><span id="pageLabel"></span><button class="btn ghost" id="nextBtn" type="button">Next →</button></div>
       <div class="state" id="state" hidden></div>
       <div class="more" id="more" hidden><button class="btn ghost" id="moreBtn">Load more</button></div>
       <div id="sentinel" style="height:1px"></div>
@@ -302,11 +306,12 @@ footer a:hover{text-decoration:underline}
     browse: $('#browse'), movie: $('#movie'), mbody: $('#mbody'), backdrop: $('#backdrop'), toast: $('#toast'),
     tgFoot: $('#tgFoot'), tgMenu: $('#tgMenu'), theme: $('#theme'), back: $('#back'),
     secFilters: $('#secFilters'), sechead: $('#sechead'), menuBtn: $('#menuBtn'), menuPanel: $('#menuPanel'), menuSecs: $('#menuSecs'), menuHome: $('#menuHome'),
+    secPager: $('#secPager'), prevBtn: $('#prevBtn'), nextBtn: $('#nextBtn'), pageLabel: $('#pageLabel'),
   };
 
   const QUALITY = ['480p', '720p', '1080p', '4K'];
   const LANGS = ['Tamil', 'Telugu', 'Hindi', 'Malayalam', 'Kannada', 'English'];
-  const state = { query: '', lang: '', quality: '', next: null, loading: false, seq: 0, movies: new Map(), total: 0, bot: '', scroll: 0, from: 'home', activeSec: '', secData: null, secPromise: null };
+  const state = { query: '', lang: '', quality: '', next: null, loading: false, seq: 0, movies: new Map(), total: 0, bot: '', scroll: 0, from: 'home', activeSec: '', secPage: 1 };
 
   /* ── helpers ── */
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -415,41 +420,42 @@ footer a:hover{text-decoration:underline}
   }
   function clearSection() {
     if (!state.activeSec) return;
-    state.activeSec = '';
+    state.activeSec = ''; state.secPage = 1; el.secPager.hidden = true;
     renderSecChips();
   }
-  async function loadSection(id) {
-    if (state.activeSec === id) { clearSection(); load(false); return; }
-    state.seq++; state.activeSec = id; state.next = null; state.loading = false;
+  async function loadSection(id, page = 1, force = false) {
+    if (!force && page === 1 && state.activeSec === id) { clearSection(); load(false); return; }
+    state.seq++; state.activeSec = id; state.secPage = page; state.next = null; state.loading = false;
     renderSecChips();
-    el.grid.innerHTML = skeletons(12); showState(''); el.more.hidden = true;
+    el.grid.innerHTML = skeletons(12); showState(''); el.more.hidden = true; el.secPager.hidden = false;
     const title = (SECTIONS.find(s => s[0] === id) || [id, id])[1];
     el.title.textContent = title; el.sub.textContent = 'Loading…';
-    el.sechead.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.pageLabel.textContent = `Page ${page}`;
+    el.prevBtn.disabled = page <= 1; el.nextBtn.disabled = true;
+    if (page === 1) el.sechead.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
-      if (!state.secData) {
-        if (!state.secPromise) state.secPromise = api('/api/sections').then(d => { state.secData = d; state.secPromise = null; });
-        await state.secPromise;
-        if (state.activeSec !== id) return;
-      }
-      const sec = (state.secData.sections || []).find(s => s.id === id);
-      if (!sec || !sec.movies.length) {
+      const j = await api(`/api/section?section=${encodeURIComponent(id)}&page=${page}`);
+      if (state.activeSec !== id || state.secPage !== page) return;
+      if (!j.movies.length) {
         el.grid.innerHTML = '';
-        showState(`<div class="em">🎞️</div><div class="big">No titles in this section yet</div><div>Try another section, or check back after new files are added.</div>`);
-        el.sub.textContent = '';
+        showState(`<div class="em">🎞️</div><div class="big">No titles on this page</div><div>Try the previous page, or another section.</div>`);
+        el.sub.textContent = ''; el.nextBtn.disabled = true;
         return;
       }
-      el.grid.innerHTML = sec.movies.map(cardHTML).join('');
+      el.grid.innerHTML = j.movies.map(cardHTML).join('');
       wireImgs(el.grid);
-      el.sub.textContent = `${sec.movies.length} titles`;
+      el.sub.textContent = `${j.movies.length} titles`;
+      el.pageLabel.textContent = j.total_pages ? `Page ${j.page} / ${j.total_pages}` : `Page ${j.page}`;
+      el.prevBtn.disabled = j.page <= 1; el.nextBtn.disabled = !j.has_next;
     } catch (e) {
-      state.secPromise = null;
       el.grid.innerHTML = '';
       showState(`<div class="em">⚠️</div><div class="big">Couldn’t load this section</div><div>${esc(e.message)}</div><button class="btn pri" id="retrySec">Try again</button>`);
-      const r = $('#retrySec'); if (r) r.onclick = () => loadSection(id);
+      const r = $('#retrySec'); if (r) r.onclick = () => loadSection(id, page);
       el.sub.textContent = '';
     }
   }
+  el.prevBtn.onclick = () => { if (state.activeSec && state.secPage > 1) loadSection(state.activeSec, state.secPage - 1); };
+  el.nextBtn.onclick = () => { if (state.activeSec && !el.nextBtn.disabled) loadSection(state.activeSec, state.secPage + 1); };
   el.secFilters.addEventListener('click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
     loadSection(b.dataset.sec);
@@ -458,7 +464,7 @@ footer a:hover{text-decoration:underline}
     el.menuSecs.innerHTML = '';
     SECTIONS.forEach(([id, t]) => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
-      b.onclick = () => { closeMenu(); loadSection(id); };
+      b.onclick = () => { closeMenu(); loadSection(id, 1, true); };
       el.menuSecs.append(b);
     });
   }

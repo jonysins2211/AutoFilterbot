@@ -110,6 +110,7 @@
   .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; padding-bottom: 6px; min-height: 40px; color: var(--hint); font-size: 13px; }
   .bar .actions { display: flex; gap: 4px; flex: none; }
   .link { border: 0; background: none; color: var(--teal); font-size: 13px; font-weight: 600; padding: 8px 8px; margin: -8px -4px; }
+  .link:disabled { opacity: .45; }
 
   /* ── Poster grid ─────────────────────────────────────────────────────── */
   .grid { list-style: none; margin: 0; padding-top: 6px; padding-bottom: 8px; display: grid; gap: 18px 14px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -266,6 +267,11 @@
     <div id="secChips" class="chips pad" role="group" aria-label="Sections"></div>
 
     <div class="bar pad"><span id="summary" aria-live="polite"></span></div>
+    <div id="pager" class="bar pad" hidden>
+      <button id="prevBtn" class="link" type="button">← Prev</button>
+      <span id="pageLabel"></span>
+      <button id="nextBtn" class="link" type="button">Next →</button>
+    </div>
     <ul id="grid" class="grid pad"></ul>
     <div id="state" class="state" hidden></div>
     <div id="more" class="more" hidden>Loading more…</div>
@@ -355,7 +361,7 @@
   };
 
   // ── State ──────────────────────────────────────────────────────────────
-  const state = { query: '', quality: '', lang: '', next: null, loading: false, seq: 0, view: 'home', activeSec: '', secData: null, secPromise: null };
+  const state = { query: '', quality: '', lang: '', next: null, loading: false, seq: 0, view: 'home', activeSec: '', secPage: 1 };
   const selected = new Map();    // file id -> {name, key}
   const sent = new Set();        // file ids requested this session
   const movies = [];             // movies currently in the grid
@@ -374,6 +380,7 @@
     files: $('files'), mstate: $('mstate'), lightbox: $('lightbox'), lightImg: $('lightImg'),
     dock: $('dock'), count: $('count'), send: $('send'), toast: $('toast'),
     secChips: $('secChips'), menuBtn: $('menuBtn'), menuPanel: $('menuPanel'), menuSecs: $('menuSecs'), menuHome: $('menuHome'),
+    pager: $('pager'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'), pageLabel: $('pageLabel'),
   };
 
   // ── API ────────────────────────────────────────────────────────────────
@@ -435,10 +442,9 @@
 
   // ── Section buttons (below the language chips) ──────────────────────
   // Home stays as before: only Latest uploads. A section loads only when
-  // its button (or menu entry) is clicked, into the normal grid. The
-  // genre scan backend (whole-DB, recent first) already serves both the
-  // site and the Mini App through /api/sections, so no extra backend
-  // change is needed here.
+  // its button (or menu entry) is clicked, into the normal grid, 20 per
+  // page with Prev / Next. Only that page's 20 titles get poster lookups,
+  // so pagination does not repeat the old whole-DB scan slowness.
   const SECTIONS = [
     ['latest-movies', 'Latest Movies'], ['latest-series', 'Latest Web Series'],
     ['popular', 'Popular'], ['recently-added', 'Recently Added'],
@@ -457,48 +463,50 @@
   }
   function clearSection() {
     if (!state.activeSec) return;
-    state.activeSec = '';
+    state.activeSec = ''; state.secPage = 1; el.pager.hidden = true;
     renderSecChips();
   }
   function renderMenuSecs() {
     el.menuSecs.replaceChildren();
     SECTIONS.forEach(([id, t]) => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
-      b.onclick = () => { closeMenu(); loadSection(id); };
+      b.onclick = () => { closeMenu(); loadSection(id, 1, true); };
       el.menuSecs.append(b);
     });
   }
-  async function loadSection(id) {
-    if (state.activeSec === id) { clearSection(); load(false); return; }
+  async function loadSection(id, page = 1, force = false) {
+    if (!force && page === 1 && state.activeSec === id) { clearSection(); load(false); return; }
     if (ctrl) ctrl.abort();
-    state.seq++; state.activeSec = id; state.next = null; state.loading = false;
+    state.seq++; state.activeSec = id; state.secPage = page; state.next = null; state.loading = false;
     renderSecChips();
-    el.state.hidden = true; el.more.hidden = true;
+    el.state.hidden = true; el.more.hidden = true; el.pager.hidden = false;
     el.summary.textContent = 'Loading…';
+    el.pageLabel.textContent = `Page ${page}`;
+    el.prevBtn.disabled = page <= 1; el.nextBtn.disabled = true;
     skeletonGrid();
     const title = (SECTIONS.find((s) => s[0] === id) || [id, id])[1];
     try {
-      if (!state.secData) {
-        if (!state.secPromise) state.secPromise = api('/api/sections', {}).then((d) => { state.secData = d; state.secPromise = null; });
-        await state.secPromise;
-        if (state.activeSec !== id) return;
-      }
-      const sec = (state.secData.sections || []).find((s) => s.id === id);
-      if (!sec || !sec.movies.length) {
+      const d = await api('/api/section', { section: id, page });
+      if (state.activeSec !== id || state.secPage !== page) return;
+      if (!d.movies.length) {
         el.grid.replaceChildren(); el.summary.textContent = '';
-        showState(el.state, `No titles in ${title} yet`, 'Try another section, or check back after new files are added.');
+        showState(el.state, 'No titles on this page', 'Try the previous page, or another section.');
+        el.nextBtn.disabled = true;
         return;
       }
       el.grid.replaceChildren();
-      sec.movies.forEach((m) => el.grid.append(buildCard(m)));
-      el.summary.textContent = `${title} · ${sec.movies.length} titles`;
+      d.movies.forEach((m) => el.grid.append(buildCard(m)));
+      el.summary.textContent = `${title} · ${d.movies.length} titles`;
+      el.pageLabel.textContent = d.total_pages ? `Page ${d.page} / ${d.total_pages}` : `Page ${d.page}`;
+      el.prevBtn.disabled = d.page <= 1; el.nextBtn.disabled = !d.has_next;
       syncSelection();
     } catch (e) {
-      state.secPromise = null;
       el.grid.replaceChildren(); el.summary.textContent = '';
-      showState(el.state, 'Could not load this section', e.message, () => loadSection(id));
+      showState(el.state, 'Could not load this section', e.message, () => loadSection(id, page, true));
     }
   }
+  el.prevBtn.onclick = () => { if (state.activeSec && state.secPage > 1) loadSection(state.activeSec, state.secPage - 1, true); };
+  el.nextBtn.onclick = () => { if (state.activeSec && !el.nextBtn.disabled) loadSection(state.activeSec, state.secPage + 1, true); };
   function closeMenu() { el.menuPanel.hidden = true; el.menuBtn.setAttribute('aria-expanded', 'false'); }
   el.menuBtn.onclick = (e) => { e.stopPropagation(); const open = el.menuPanel.hidden; el.menuPanel.hidden = !open; el.menuBtn.setAttribute('aria-expanded', String(open)); };
   document.addEventListener('click', (e) => { if (!e.target.closest('.menu-wrap')) closeMenu(); });

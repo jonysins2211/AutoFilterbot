@@ -230,7 +230,7 @@ async def search_core(query, offset=0):
 
 
 # ── Home sections ──────────────────────────────────────────────────────────
-SECTION_LIMIT = 12        # cards per section row
+SECTION_LIMIT = 20        # cards per section (site + Mini App share this)
 SECTION_POOL = 200        # newest files read to build all sections in one pass
 
 
@@ -329,6 +329,214 @@ async def sections_core():
              "title": m["title"], "year": m["year"], "kind": m["kind"],
              "thumb": m["thumb"], "rating": m["rating"]} for m in rows]})
     return {"ok": True, "sections": sections}
+
+
+# ── Paginated sections (20 per page) ─────────────────────────────────────
+# Why this does NOT repeat the genre-scan slowness: a page request looks up
+# posters only for that page's 20 titles. Scanning the DB itself is just
+# filename parsing (no network). Genre / top-rated lists are cached, and
+# their scan stops once the requested page is filled (genre) or once a
+# bounded window is sorted (popular / top-rated).
+SECTION_PAGE_SIZE = 20
+SECTION_TITLES = {
+    "latest-movies": "Latest Movies", "latest-series": "Latest Web Series",
+    "popular": "Popular", "recently-added": "Recently Added",
+    "top-rated": "Top IMDb Rated", "action": "Action",
+    "sci-fi": "Sci-Fi", "horror": "Horror", "thriller": "Thriller",
+}
+_GENRE_NAMES = {
+    "action": ("action",), "sci-fi": ("sci-fi", "science fiction"),
+    "horror": ("horror",), "thriller": ("thriller",),
+}
+_SEC_TTL = 1800
+_genre_cache = {}    # gid -> {movies, offset, seen, done, at}
+_sorted_cache = {}   # "popular" -> {parsed, at}; "top-rated" -> {movies, at}
+
+
+async def _db_batch(offset, limit):
+    tasks = [Media.find({}).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit)]
+    if MULTIPLE_DB:
+        tasks.append(Media2.find({}).sort("$natural", -1).skip(offset).limit(limit).to_list(length=limit))
+    results = await asyncio.gather(*tasks)
+    return [f for batch in results for f in batch]
+
+
+def _pub_from(p, info):
+    info = info if isinstance(info, dict) else {}
+    return {"mkey": p["key"], "key": p["key"], "keys": [p["key"]],
+            "q": p["title"], "qs": [p["title"]],
+            "title": info.get("title") or p["title"],
+            "year": info.get("year") or p["year"], "kind": p["kind"],
+            "thumb": info.get("thumb"), "rating": info.get("rating")}
+
+
+async def _lookup_titles(titles, detail=False):
+    if not titles:
+        return []
+    raw = await asyncio.gather(
+        *(get_info(p["title"], p["year"], p["kind"], detail=detail) for p in titles),
+        return_exceptions=True,
+    )
+    return [_pub_from(p, info) for p, info in zip(titles, raw)]
+
+
+async def _scan_order_page(section_id, page):
+    """Latest / series / recently: newest-first, parse-only scan, then
+    poster lookups for the requested page only."""
+    kind = {"latest-movies": "movie", "latest-series": "series"}.get(section_id)
+    need = page * SECTION_PAGE_SIZE + 1
+    collected, seen, offset, scanned, done = [], set(), 0, 0, False
+    while len(collected) < need and scanned < 5000:
+        files = await _db_batch(offset, 200)
+        if not files:
+            done = True
+            break
+        offset += 200
+        scanned += len(files)
+        for f in files:
+            p = parse_name(f.file_name)
+            if not p["is_video"] or p["key"] in seen:
+                continue
+            seen.add(p["key"])
+            if kind and p["kind"] != kind:
+                continue
+            collected.append(p)
+    start = (page - 1) * SECTION_PAGE_SIZE
+    movies = await _lookup_titles(collected[start:start + SECTION_PAGE_SIZE])
+    total = (len(collected) + SECTION_PAGE_SIZE - 1) // SECTION_PAGE_SIZE if done else None
+    return movies, len(collected) > page * SECTION_PAGE_SIZE, total
+
+
+async def _genre_page(gid, page):
+    names = _GENRE_NAMES[gid]
+    cache = _genre_cache.get(gid)
+    if cache is None or time.time() - cache["at"] > _SEC_TTL:
+        cache = {"movies": [], "offset": 0, "seen": set(), "done": False, "at": time.time()}
+        _genre_cache[gid] = cache
+    need = page * SECTION_PAGE_SIZE
+    scanned = 0
+    while len(cache["movies"]) < need and not cache["done"] and scanned < 3000:
+        files = await _db_batch(cache["offset"], 150)
+        if not files:
+            cache["done"] = True
+            break
+        cache["offset"] += 150
+        scanned += len(files)
+        groups = {}
+        for f in files:
+            p = parse_name(f.file_name)
+            if not p["is_video"] or p["key"] in cache["seen"]:
+                continue
+            cache["seen"].add(p["key"])
+            groups[p["key"]] = p
+        if not groups:
+            continue
+        raw = await asyncio.gather(
+            *(get_info(p["title"], p["year"], p["kind"], detail=True) for p in groups.values()),
+            return_exceptions=True,
+        )
+        for p, info in zip(groups.values(), raw):
+            if not isinstance(info, dict):
+                continue
+            genres = [str(g).lower() for g in (info.get("genres") or [])]
+            if any(any(n in g for g in genres) for n in names):
+                cache["movies"].append(_pub_from(p, info))
+    start = (page - 1) * SECTION_PAGE_SIZE
+    total = (len(cache["movies"]) + SECTION_PAGE_SIZE - 1) // SECTION_PAGE_SIZE if cache["done"] else None
+    return cache["movies"][start:start + SECTION_PAGE_SIZE], len(cache["movies"]) > page * SECTION_PAGE_SIZE, total
+
+
+async def _popular_page(page):
+    cache = _sorted_cache.get("popular")
+    if cache is None or time.time() - cache["at"] > _SEC_TTL:
+        parsed, counts, seen, offset, scanned = [], {}, set(), 0, 0
+        while scanned < 1000 and len(parsed) < 300:
+            files = await _db_batch(offset, 200)
+            if not files:
+                break
+            offset += 200
+            scanned += len(files)
+            for f in files:
+                p = parse_name(f.file_name)
+                if not p["is_video"]:
+                    continue
+                counts[p["key"]] = counts.get(p["key"], 0) + 1
+                if p["key"] not in seen:
+                    seen.add(p["key"])
+                    parsed.append(p)
+        parsed.sort(key=lambda p: -counts[p["key"]])   # stable: ties keep newest-first order
+        cache = {"parsed": parsed, "at": time.time()}
+        _sorted_cache["popular"] = cache
+    parsed = cache["parsed"]
+    start = (page - 1) * SECTION_PAGE_SIZE
+    movies = await _lookup_titles(parsed[start:start + SECTION_PAGE_SIZE])
+    total = (len(parsed) + SECTION_PAGE_SIZE - 1) // SECTION_PAGE_SIZE
+    return movies, len(parsed) > page * SECTION_PAGE_SIZE, total
+
+
+async def _toprated_page(page):
+    cache = _sorted_cache.get("top-rated")
+    if cache is None or time.time() - cache["at"] > _SEC_TTL:
+        parsed, seen, offset, scanned = [], set(), 0, 0
+        while scanned < 1000 and len(parsed) < 200:
+            files = await _db_batch(offset, 200)
+            if not files:
+                break
+            offset += 200
+            scanned += len(files)
+            for f in files:
+                p = parse_name(f.file_name)
+                if not p["is_video"] or p["key"] in seen:
+                    continue
+                seen.add(p["key"])
+                parsed.append(p)
+        movies = []
+        for i in range(0, len(parsed), 30):
+            movies += [m for m in await _lookup_titles(parsed[i:i + 30]) if m["rating"]]
+        movies.sort(key=lambda m: -(m["rating"] or 0))
+        cache = {"movies": movies, "at": time.time()}
+        _sorted_cache["top-rated"] = cache
+    movies = cache["movies"]
+    start = (page - 1) * SECTION_PAGE_SIZE
+    total = (len(movies) + SECTION_PAGE_SIZE - 1) // SECTION_PAGE_SIZE
+    return movies[start:start + SECTION_PAGE_SIZE], len(movies) > page * SECTION_PAGE_SIZE, total
+
+
+async def section_page_core(section_id, page):
+    """One page (20 titles) of one section. Returns (movies, has_next, total_pages|None).
+    total_pages is None when the end of the DB has not been reached yet, so
+    front ends must show 'Page N' + Next, never a made-up total."""
+    if section_id not in SECTION_TITLES or page < 1 or page > 50:
+        return None
+    if section_id in ("latest-movies", "latest-series", "recently-added"):
+        movies, has_next, total = await _scan_order_page(section_id, page)
+    elif section_id in _GENRE_NAMES:
+        movies, has_next, total = await _genre_page(section_id, page)
+    elif section_id == "popular":
+        movies, has_next, total = await _popular_page(page)
+    else:
+        movies, has_next, total = await _toprated_page(page)
+    return {"ok": True, "section": section_id, "title": SECTION_TITLES[section_id],
+            "page": page, "per_page": SECTION_PAGE_SIZE, "movies": movies,
+            "has_next": has_next, "total_pages": total}
+
+
+@routes.post("/app/api/section")
+async def api_section(request):
+    auth, resp = await _auth(request)
+    if resp is not None:
+        return resp
+    _, body = auth
+    try:
+        page = max(1, int(body.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        data = await section_page_core(str(body.get("section", "")), page)
+    except Exception:
+        logger.exception("miniapp section page failed")
+        return _err("Database is busy. Try again.", 500)
+    return _err("Unknown section") if data is None else web.json_response(data)
 
 
 @routes.post("/app/api/search")
