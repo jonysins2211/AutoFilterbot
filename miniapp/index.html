@@ -66,21 +66,6 @@
   .mark::after { right: -4px; }
   .brand h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1; letter-spacing: .01em; }
   .brand p { margin: 3px 0 0; font-size: 12.5px; color: var(--hint); }
-  .brand .spacer { flex: 1; }
-  .icon-btn { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; font-size: 20px; }
-  .menu-wrap { position: relative; flex: none; }
-  .menu-panel { position: absolute; right: 0; top: 48px; z-index: 20; min-width: 220px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); box-shadow: 0 12px 30px rgba(0, 0, 0, .25); }
-  .menu-panel button { display: block; width: 100%; text-align: left; padding: 11px 14px; border: 0; background: none; font-size: 15px; border-radius: 8px; }
-  .menu-panel button:active { background: var(--surface); }
-  .menu-panel .msep { height: 1px; background: var(--line); margin: 6px 8px; }
-  .menu-panel .mnote { padding: 11px 14px; color: var(--hint); font-size: 13px; }
-  .sechead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 16px 0 4px; }
-  .sechead h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; line-height: 1; }
-  .sechead span { color: var(--hint); font-size: 13px; flex: none; }
-  .rowscroll { list-style: none; margin: 0; padding: 4px 2px 12px; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; }
-  .rowscroll::-webkit-scrollbar { display: none; }
-  .rowscroll li { flex: none; width: 150px; }
-  .secrow { scroll-margin-top: 70px; }
 
   /* ── Search header ───────────────────────────────────────────────────── */
   .top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 10px; padding-bottom: 6px; }
@@ -110,7 +95,6 @@
   .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; padding-bottom: 6px; min-height: 40px; color: var(--hint); font-size: 13px; }
   .bar .actions { display: flex; gap: 4px; flex: none; }
   .link { border: 0; background: none; color: var(--teal); font-size: 13px; font-weight: 600; padding: 8px 8px; margin: -8px -4px; }
-  .link:disabled { opacity: .45; }
 
   /* ── Poster grid ─────────────────────────────────────────────────────── */
   .grid { list-style: none; margin: 0; padding-top: 6px; padding-bottom: 8px; display: grid; gap: 18px 14px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -242,14 +226,6 @@
         <h1>MØVIE LØVERZ</h1>
         <p>Search &amp; get files on Telegram</p>
       </div>
-      <div class="spacer"></div>
-      <div class="menu-wrap">
-        <button id="menuBtn" class="icon-btn" type="button" aria-label="Menu" aria-expanded="false">☰</button>
-        <div id="menuPanel" class="menu-panel" hidden>
-          <button id="menuHome" type="button">Home</button>
-          <div id="menuSecs"><div class="mnote">Loading sections…</div></div>
-        </div>
-      </div>
     </header>
 
     <div class="top pad">
@@ -264,14 +240,7 @@
       <div class="chips" id="langChips" role="group" aria-label="Language"></div>
     </div>
 
-    <div id="secChips" class="chips pad" role="group" aria-label="Sections"></div>
-
     <div class="bar pad"><span id="summary" aria-live="polite"></span></div>
-    <div id="pager" class="bar pad" hidden>
-      <button id="prevBtn" class="link" type="button">← Prev</button>
-      <span id="pageLabel"></span>
-      <button id="nextBtn" class="link" type="button">Next →</button>
-    </div>
     <ul id="grid" class="grid pad"></ul>
     <div id="state" class="state" hidden></div>
     <div id="more" class="more" hidden>Loading more…</div>
@@ -361,7 +330,7 @@
   };
 
   // ── State ──────────────────────────────────────────────────────────────
-  const state = { query: '', quality: '', lang: '', next: null, loading: false, seq: 0, view: 'home', activeSec: '', secPage: 1 };
+  const state = { query: '', quality: '', lang: '', next: null, loading: false, seq: 0, view: 'home' };
   const selected = new Map();    // file id -> {name, key}
   const sent = new Set();        // file ids requested this session
   const movies = [];             // movies currently in the grid
@@ -379,8 +348,6 @@
     msummary: $('msummary'), selectAll: $('selectAll'), clearSel: $('clearSel'),
     files: $('files'), mstate: $('mstate'), lightbox: $('lightbox'), lightImg: $('lightImg'),
     dock: $('dock'), count: $('count'), send: $('send'), toast: $('toast'),
-    secChips: $('secChips'), menuBtn: $('menuBtn'), menuPanel: $('menuPanel'), menuSecs: $('menuSecs'), menuHome: $('menuHome'),
-    pager: $('pager'), prevBtn: $('prevBtn'), nextBtn: $('nextBtn'), pageLabel: $('pageLabel'),
   };
 
   // ── API ────────────────────────────────────────────────────────────────
@@ -440,79 +407,6 @@
   const fmtRating = (r) => Number(r).toFixed(1);
   const wrapSeps = (s) => s.replace(/([._-])/g, '$1​');    // allow wrapping at separators; text stays complete
 
-  // ── Section buttons (below the language chips) ──────────────────────
-  // Home stays as before: only Latest uploads. A section loads only when
-  // its button (or menu entry) is clicked, into the normal grid, 20 per
-  // page with Prev / Next. Only that page's 20 titles get poster lookups,
-  // so pagination does not repeat the old whole-DB scan slowness.
-  const SECTIONS = [
-    ['latest-movies', 'Latest Movies'], ['latest-series', 'Latest Web Series'],
-    ['popular', 'Popular'], ['recently-added', 'Recently Added'],
-    ['top-rated', 'Top IMDb Rated'], ['action', 'Action'],
-    ['sci-fi', 'Sci-Fi'], ['horror', 'Horror'], ['thriller', 'Thriller'],
-  ];
-  function renderSecChips() {
-    el.secChips.replaceChildren();
-    SECTIONS.forEach(([id, t]) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'chip'; b.textContent = t;
-      b.setAttribute('aria-pressed', state.activeSec === id ? 'true' : 'false');
-      b.onclick = () => loadSection(id);
-      el.secChips.append(b);
-    });
-  }
-  function clearSection() {
-    if (!state.activeSec) return;
-    state.activeSec = ''; state.secPage = 1; el.pager.hidden = true;
-    renderSecChips();
-  }
-  function renderMenuSecs() {
-    el.menuSecs.replaceChildren();
-    SECTIONS.forEach(([id, t]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
-      b.onclick = () => { closeMenu(); loadSection(id, 1, true); };
-      el.menuSecs.append(b);
-    });
-  }
-  async function loadSection(id, page = 1, force = false) {
-    if (!force && page === 1 && state.activeSec === id) { clearSection(); load(false); return; }
-    if (ctrl) ctrl.abort();
-    state.seq++; state.activeSec = id; state.secPage = page; state.next = null; state.loading = false;
-    renderSecChips();
-    el.state.hidden = true; el.more.hidden = true; el.pager.hidden = false;
-    el.summary.textContent = 'Loading…';
-    el.pageLabel.textContent = `Page ${page}`;
-    el.prevBtn.disabled = page <= 1; el.nextBtn.disabled = true;
-    skeletonGrid();
-    const title = (SECTIONS.find((s) => s[0] === id) || [id, id])[1];
-    try {
-      const d = await api('/api/section', { section: id, page });
-      if (state.activeSec !== id || state.secPage !== page) return;
-      if (!d.movies.length) {
-        el.grid.replaceChildren(); el.summary.textContent = '';
-        showState(el.state, 'No titles on this page', 'Try the previous page, or another section.');
-        el.nextBtn.disabled = true;
-        return;
-      }
-      el.grid.replaceChildren();
-      d.movies.forEach((m) => el.grid.append(buildCard(m)));
-      el.summary.textContent = `${title} · ${d.movies.length} titles`;
-      el.pageLabel.textContent = d.total_pages ? `Page ${d.page} / ${d.total_pages}` : `Page ${d.page}`;
-      el.prevBtn.disabled = d.page <= 1; el.nextBtn.disabled = !d.has_next;
-      syncSelection();
-    } catch (e) {
-      el.grid.replaceChildren(); el.summary.textContent = '';
-      showState(el.state, 'Could not load this section', e.message, () => loadSection(id, page, true));
-    }
-  }
-  el.prevBtn.onclick = () => { if (state.activeSec && state.secPage > 1) loadSection(state.activeSec, state.secPage - 1, true); };
-  el.nextBtn.onclick = () => { if (state.activeSec && !el.nextBtn.disabled) loadSection(state.activeSec, state.secPage + 1, true); };
-  function closeMenu() { el.menuPanel.hidden = true; el.menuBtn.setAttribute('aria-expanded', 'false'); }
-  el.menuBtn.onclick = (e) => { e.stopPropagation(); const open = el.menuPanel.hidden; el.menuPanel.hidden = !open; el.menuBtn.setAttribute('aria-expanded', String(open)); };
-  document.addEventListener('click', (e) => { if (!e.target.closest('.menu-wrap')) closeMenu(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-  el.menuHome.onclick = () => { closeMenu(); clearSection(); window.scrollTo({ top: 0, behavior: 'smooth' }); load(false); };
-
   // ── HOME: poster grid ──────────────────────────────────────────────────
   function skeletonGrid() {
     el.grid.replaceChildren();
@@ -542,7 +436,6 @@
 
   async function load(append) {
     if (append && (state.loading || state.next === null)) return;
-    if (!append) clearSection();
     const mySeq = append ? state.seq : ++state.seq;
     if (!append) {
       if (ctrl) ctrl.abort();
@@ -618,7 +511,6 @@
   }
   buildChips($('qualityChips'), QUALITIES, 'quality');
   buildChips($('langChips'), LANGUAGES, 'lang');
-  renderSecChips(); renderMenuSecs();
 
   // ── MOVIE view ─────────────────────────────────────────────────────────
   function setPoster(url, title) {
