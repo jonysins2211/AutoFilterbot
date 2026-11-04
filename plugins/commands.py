@@ -22,7 +22,7 @@ from info import (
     OWNER_UPI_ID, QR_CODE, AUTH_CHANNELS, AUTH_REQ_CHANNELS, FSUB_PICS, THREE_VERIFY_GAP, CUSTOM_FILE_CAPTION,
     COVERX, PROTECT_CONTENT, DELETE_TIME, PREMIUM_STREAM_MODE, STREAM_MODE, SUPPORT_CHAT_ID, REQST_CHANNEL,
     LOG_CHANNEL, SHORTENER_API, SHORTENER_API2, SHORTENER_API3, SHORTENER_WEBSITE, SHORTENER_WEBSITE2, SHORTENER_WEBSITE3,
-    TZ, MINIAPP_URL
+    TZ, MINIAPP_URL, URL
 )
 from utils import get_settings, save_group_settings, is_subscribed, is_req_subscribed, get_size, get_shortlink, is_check_admin, temp, get_readable_time, get_time, generate_settings_text, clean_filename, get_random_mix_id
 from database.daily_limits import claim_daily_file, send_daily_limit_note
@@ -238,9 +238,7 @@ async def start(client, message):
 
         if len(message.command) == 2 and message.command[1] in ["premium"]:
             buttons = [[
-                        InlineKeyboardButton('📲 ꜱᴇɴᴅ ᴘᴀʏᴍᴇɴᴛ ꜱᴄʀᴇᴇɴꜱʜᴏᴛ', url=OWNER_LNK)
-                      ],[
-                        InlineKeyboardButton('UPI ID Copy Karein ??', copy_text=CopyTextButton(text=OWNER_UPI_ID), style=enums.ButtonStyle.PRIMARY)
+                        InlineKeyboardButton('🚀 Buy Premium 🚀', web_app=WebAppInfo(url=f"{URL.rstrip('/')}/activate-plan"))
                       ],[
                         InlineKeyboardButton('❌ ᴄʟᴏꜱᴇ ❌', callback_data='close_data', style=enums.ButtonStyle.DANGER)
                       ]]
@@ -348,10 +346,10 @@ async def start(client, message):
                         else:
                             howtodownload = settings.get('tutorial_2', TUTORIAL_2) if is_second_shortener else settings.get('tutorial', TUTORIAL)
                         buttons = [[
-                            InlineKeyboardButton(text="♻️ ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴠᴇʀɪꜰʏ ♻️", url=verify)
+                            InlineKeyboardButton(text="♻️ Verify Now ♻️", url=verify)
                         ],[
-                            InlineKeyboardButton(text="⁉️ ʜᴏᴡ ᴛᴏ ᴠᴇʀɪꜰʏ ⁉️", url=howtodownload),
-                            InlineKeyboardButton(text="💎 Buy Premium: Remove Ads", callback_data="premium_info")
+                            InlineKeyboardButton(text="⁉️ How to Verify ⁉️", url=howtodownload),
+                            InlineKeyboardButton(text="💎 Buy Premium", callback_data="premium_info")
                         ]]
                         reply_markup=InlineKeyboardMarkup(buttons)
                         if await db.user_verified(user_id): 
