@@ -44,29 +44,29 @@ name = str(environ.get('name', 'DREAMXBOTZ'))
 # 2. ADMINS, CHANNELS & PERMISSIONS
 # ==============================================================================
 # Telegram user IDs of bot administrators (space-separated in .env)
-ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in environ.get('ADMINS', '634637418').split()]
+ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in environ.get('ADMINS', '949657126').split()]
 
 # Channels to auto-index files from (Bot must be an admin in these channels)
-CHANNELS = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('CHANNELS', '-100').split()]
+CHANNELS = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('CHANNELS', '-1002203356678 -1002210834805 -1001176901973').split()]
 
 # Logging & Storage Channels
-LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '-100'))            # General activity & error logs
-BIN_CHANNEL = int(environ.get('BIN_CHANNEL', '-100'))            # File storage / binary cache channel
-PREMIUM_LOGS = int(environ.get('PREMIUM_LOGS', '-100'))          # Premium subscription logs
+LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '-1002134871596'))            # General activity & error logs
+BIN_CHANNEL = int(environ.get('BIN_CHANNEL', '-1002134871596'))            # File storage / binary cache channel
+PREMIUM_LOGS = int(environ.get('PREMIUM_LOGS', '-1003703572230'))          # Premium subscription logs
 DELETE_CHANNELS = [int(dch) if id_pattern.search(dch) else dch for dch in environ.get('DELETE_CHANNELS', '-100').split()]
 
 # Support Group & Request Channel
-support_chat_id = environ.get('SUPPORT_CHAT_ID', '-100')
+support_chat_id = environ.get('SUPPORT_CHAT_ID', '-1002134871596')
 SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(support_chat_id) else None
 SUPPORT_CHAT = environ.get('SUPPORT_CHAT', 'https://t.me/')
 
-reqst_channel = environ.get('REQST_CHANNEL_ID', '-100')
+reqst_channel = environ.get('REQST_CHANNEL_ID', '-1002134871596')
 REQST_CHANNEL = int(reqst_channel) if reqst_channel and id_pattern.search(reqst_channel) else None
 INDEX_REQ_CHANNEL = int(environ.get('INDEX_REQ_CHANNEL', LOG_CHANNEL))
 
 # Force Subscription Channels (Users must join these before using the bot)
-auth_req_channels = environ.get("AUTH_REQ_CHANNELS", "-100")
-auth_channels = environ.get("AUTH_CHANNELS", "-100")
+auth_req_channels = environ.get("AUTH_REQ_CHANNELS", "-1002918900365")
+auth_channels = environ.get("AUTH_CHANNELS", "-1002918900365 -1001547011153")
 AUTH_REQ_CHANNELS = [int(ch) for ch in auth_req_channels.split() if ch and id_pattern.match(ch)]
 AUTH_CHANNELS = [int(ch) for ch in auth_channels.split() if ch and id_pattern.match(ch)]
 
@@ -76,9 +76,9 @@ AUTH_USERS = (auth_users + ADMINS) if auth_users else []
 PREMIUM_USER = [int(user) if id_pattern.search(user) else user for user in environ.get('PREMIUM_USER', '').split()]
 
 # Social & Community Links
-GRP_LNK = environ.get('GRP_LNK', 'https://t.me/dreamxbotz')
-OWNER_LNK = environ.get('OWNER_LNK', 'https://t.me/dreamxbotz')
-UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/dreamxbotz')
+GRP_LNK = environ.get('GRP_LNK', 'https://t.me/+Z7bC3GxIvYxhMTNl')
+OWNER_LNK = environ.get('OWNER_LNK', 'https://t.me/Mladminbot')
+UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/Movie_Loverzz')
 
 
 # ==============================================================================
@@ -121,10 +121,10 @@ TZ = pytz.timezone(TIMEZONE)
 CACHE_TIME = int(environ.get('CACHE_TIME', 300))                 # In-memory cache duration in seconds
 DELETE_TIME = int(environ.get("DELETE_TIME", "300"))              # Auto-delete message timer (seconds)
 MAX_LIST_ELM = int(environ.get("MAX_LIST_ELM") or 10) or None     # Search list items per page
-MAX_B_TN = environ.get("MAX_B_TN", "5")                           # Max buttons per row
+MAX_B_TN = environ.get("MAX_B_TN", "7")                           # Max buttons per row
 # Daily limits (ported feature, NEW — not in Test1).
 # Edit these numbers in info.py only; no limit is hard-coded elsewhere.
-DAILY_FILE_LIMIT = 10  # files per verified non-premium user per day; premium unlimited
+DAILY_FILE_LIMIT = 2  # files per verified non-premium user per day; premium unlimited
 DAILY_STREAM_LINK_LIMIT = 3  # new stream/download link generations per verified non-premium user per day; repeat of the same file the same day does not count again
 
 # Feature Toggles
@@ -191,37 +191,37 @@ LINK_PREVIEW = is_enabled(environ.get('LINK_PREVIEW', "False"), False)
 ABOVE_PREVIEW = is_enabled(environ.get('ABOVE_PREVIEW', "True"), True)
 
 # The Movie Database (TMDB) API Key
-TMDB_API_KEY = environ.get('TMDB_API_KEY', '')
+TMDB_API_KEY = environ.get('TMDB_API_KEY', '1ba98a04426a253bc7cb4be687abe2ed')
 # OMDb API Key — backup poster source for site & Mini App posters
 OMDB_API_KEY = environ.get('OMDB_API_KEY', '899f057e')  # optional: backup poster source (free key from omdbapi.com)
 TMDB_POSTER = is_enabled(environ.get('TMDB_POSTER', "True"), True)
-TMDB_ON_SEARCH = is_enabled(environ.get('TMDB_ON_SEARCH', "False"), False)
+TMDB_ON_SEARCH = is_enabled(environ.get('TMDB_ON_SEARCH', "True"), False)
 LANDSCAPE_POSTER = is_enabled(environ.get('LANDSCAPE_POSTER', "True"), True)
 
 
 # ==============================================================================
 # 7. SHORTENERS & VERIFICATION SYSTEM
 # ==============================================================================
-IS_VERIFY = is_enabled(environ.get('IS_VERIFY', 'False'), False)
-LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-100'))
+IS_VERIFY = is_enabled(environ.get('IS_VERIFY', 'True'), False)
+LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-1002134871596'))
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://telegra.ph/file/9ecc5d6e4df5b83424896.jpg")
 
 # Tutorial Links
-TUTORIAL = environ.get("TUTORIAL", "https://t.me/dreamxbotz")
-TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/dreamxbotz")
-TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/dreamxbotz")
+TUTORIAL = environ.get("TUTORIAL", "https://t.me/ML_FILES/37")
+TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/ML_FILES/37")
+TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/ML_FILES/37")
 
 # Primary Shortener
-SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "")
-SHORTENER_API = environ.get("SHORTENER_API", "")
+SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "urllinkshort.in")
+SHORTENER_API = environ.get("SHORTENER_API", "1ba98a04426a253bc7cb4be687abe2ed")
 
 # Secondary Shortener
-SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "")
-SHORTENER_API2 = environ.get("SHORTENER_API2", "")
+SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", "urllinkshort.in")
+SHORTENER_API2 = environ.get("SHORTENER_API2", "1ba98a04426a253bc7cb4be687abe2ed")
 
 # Tertiary Shortener
-SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "")
-SHORTENER_API3 = environ.get("SHORTENER_API3", "")
+SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "urllinkshort.in")
+SHORTENER_API3 = environ.get("SHORTENER_API3", "1ba98a04426a253bc7cb4be687abe2ed")
 
 # Verification Time Gaps (in seconds)
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "1200"))       # 20 minutes
@@ -231,8 +231,8 @@ THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))   # 15 hours
 # ==============================================================================
 # 8. PREMIUM PLANS & PAYMENT CONFIGURATION
 # ==============================================================================
-QR_CODE = environ.get('QR_CODE', 'https://graph.org/file/e419f801841c2ee3db0fc.jpg')
-OWNER_UPI_ID = environ.get('OWNER_UPI_ID', 'ɴᴏ ᴀᴠᴀɪʟᴀʙʟᴇ ʀɪɢʜᴛ ɴᴏᴡ')
+QR_CODE = environ.get('QR_CODE', 'https://i.ibb.co/0VJJgJPV/photo-2026-04-22-15-27-50-7645564368435806224.jpg')
+OWNER_UPI_ID = environ.get('OWNER_UPI_ID', 'movieloverz11220@okhdfcbank')
 
 # Stars / Premium Pricing Structure {Amount: "Duration"}
 STAR_PREMIUM_PLANS = {
@@ -259,7 +259,7 @@ PREMIUM_WEB_PLANS = {
 # 9. SERVER, STREAMING & WEB SETTINGS
 # ==============================================================================
 # Streaming Mode (Keep False on Render free tier to conserve bandwidth)
-STREAM_MODE = is_enabled(environ.get('STREAM_MODE', "False"), False)
+STREAM_MODE = is_enabled(environ.get('STREAM_MODE', "True"), False)
 PREMIUM_STREAM_MODE = is_enabled(environ.get('PREMIUM_STREAM_MODE', "False"), False)
 
 # Server Binding & Host Configuration
@@ -287,7 +287,7 @@ else:
 MINIAPP_URL = environ.get('MINIAPP_URL', URL).rstrip('/')
 
 # Operational Performance Parameters
-WORKERS = int(environ.get('WORKERS', '4'))
+WORKERS = int(environ.get('WORKERS', '8'))
 MULTI_CLIENT = False
 SLEEP_THRESHOLD = int(environ.get('SLEEP_THRESHOLD', '60'))
 PING_INTERVAL = int(environ.get("PING_INTERVAL", "298"))          # Keep-alive ping interval (seconds)
