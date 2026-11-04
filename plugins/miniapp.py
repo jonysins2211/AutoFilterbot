@@ -415,11 +415,16 @@ async def _genre_page(gid, page):
         _genre_cache[gid] = cache
     need = page * SECTION_PAGE_SIZE
     scanned = 0
-    while len(cache["movies"]) < need and not cache["done"] and scanned < 3000:
+    tries = 0  # per-request cap: when imdbio/OMDb are timing out, a title
+    # with no detail data can never match a genre, so trying hundreds of
+    # titles at 10s each only makes the page slower. Stop at 60 tries and
+    # return what matched; unprocessed titles are rewound, not lost.
+    while len(cache["movies"]) < need and not cache["done"] and scanned < 3000 and tries < 60:
         files = await _db_batch(cache["offset"], 150)
         if not files:
             cache["done"] = True
             break
+        batch_start = cache["offset"]
         cache["offset"] += 150
         scanned += len(files)
         groups = {}
@@ -427,20 +432,35 @@ async def _genre_page(gid, page):
             p = parse_name(f.file_name)
             if not p["is_video"] or p["key"] in cache["seen"]:
                 continue
-            cache["seen"].add(p["key"])
             groups[p["key"]] = p
         if not groups:
             continue
-        raw = await asyncio.gather(
-            *(get_info(p["title"], p["year"], p["kind"], detail=True) for p in groups.values()),
-            return_exceptions=True,
-        )
-        for p, info in zip(groups.values(), raw):
-            if not isinstance(info, dict):
-                continue
-            genres = [str(g).lower() for g in (info.get("genres") or [])]
-            if any(any(n in g for g in genres) for n in names):
-                cache["movies"].append(_pub_from(p, info))
+        ordered = list(groups.values())
+        processed = ordered[:max(0, 60 - tries)]
+        tries += len(processed)
+        looked = []
+        for i in range(0, len(processed), 10):  # bounded concurrency, 10 at a time
+            chunk = processed[i:i + 10]
+            looked.extend(chunk)
+            for p in chunk:
+                cache["seen"].add(p["key"])
+            raw = await asyncio.gather(
+                *(get_info(p["title"], p["year"], p["kind"], detail=True) for p in chunk),
+                return_exceptions=True,
+            )
+            for p, info in zip(chunk, raw):
+                if not isinstance(info, dict):
+                    continue
+                genres = [str(g).lower() for g in (info.get("genres") or [])]
+                if any(any(n in g for g in genres) for n in names):
+                    cache["movies"].append(_pub_from(p, info))
+            if len(cache["movies"]) >= need:
+                break
+        if len(looked) < len(ordered):
+            # Cap hit, or page filled, mid-batch: rewind so titles never
+            # looked up are retried on the next request instead of lost.
+            cache["offset"] = batch_start
+            break
     start = (page - 1) * SECTION_PAGE_SIZE
     total = (len(cache["movies"]) + SECTION_PAGE_SIZE - 1) // SECTION_PAGE_SIZE if cache["done"] else None
     return cache["movies"][start:start + SECTION_PAGE_SIZE], len(cache["movies"]) > page * SECTION_PAGE_SIZE, total

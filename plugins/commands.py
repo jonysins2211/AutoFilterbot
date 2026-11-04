@@ -436,6 +436,12 @@ async def start(client, message):
             file_id = decoded_file_id
             try:
                 details = await get_file_details(file_id)
+                if not details:
+                    # No DB row for this id (e.g. a malformed /start payload
+                    # that decoded to garbage): do NOT try to send it as a
+                    # Telegram file_id — that only logs a scary traceback
+                    # and ends with the same "no such file" reply anyway.
+                    return await message.reply('<b>❌ ɴᴏ ꜱᴜᴄʜ ꜰɪʟᴇ ᴇxɪꜱᴛꜱ !</b>')
                 cover = None
                 is_video = False
                 if details:
