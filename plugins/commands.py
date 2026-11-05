@@ -285,42 +285,44 @@ async def start(client, message):
                 pass
 
         file_details_task = asyncio.create_task(get_file_details(decoded_file_id))
-        if not await db.has_premium_access(message.from_user.id): 
-            try:
-                btn = []
-                chat = grp_id
-                settings      = await get_settings(chat)
-                fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS)) 
+        # Force-sub applies to EVERYONE, premium included: no premium
+        # bypass here. (Premium still skips verification and daily limits
+        # below — only the force-sub check is unconditional.)
+        try:
+            btn = []
+            chat = grp_id
+            settings      = await get_settings(chat)
+            fsub_channels = list(dict.fromkeys((settings.get('fsub', []) if settings else [])+ AUTH_CHANNELS))
 
-                if fsub_channels and AUTH_REQ_CHANNELS:
-                    res1, res2 = await asyncio.gather(
-                        is_subscribed(client, message.from_user.id, fsub_channels),
-                        is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
-                    )
-                    btn += res1 + res2
-                elif fsub_channels:
-                    btn += await is_subscribed(client, message.from_user.id, fsub_channels)
-                elif AUTH_REQ_CHANNELS:
-                    btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
-                if btn:
-                    if len(message.command) > 1 and "_" in message.command[1]:
-                        kk, file_id = message.command[1].split("_", 1)
-                        btn.append([
-                            InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
-                        ])
-                    reply_markup = InlineKeyboardMarkup(btn)
-                    photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
-                    caption = script.FORCESUB_TXT.format(message.from_user.mention)
-                    await message.reply_photo(
-                        photo=photo,
-                        caption=caption,
-                        reply_markup=reply_markup,
-                        parse_mode=enums.ParseMode.HTML
-                    )
-                    return
+            if fsub_channels and AUTH_REQ_CHANNELS:
+                res1, res2 = await asyncio.gather(
+                    is_subscribed(client, message.from_user.id, fsub_channels),
+                    is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+                )
+                btn += res1 + res2
+            elif fsub_channels:
+                btn += await is_subscribed(client, message.from_user.id, fsub_channels)
+            elif AUTH_REQ_CHANNELS:
+                btn += await is_req_subscribed(client, message.from_user.id, AUTH_REQ_CHANNELS)
+            if btn:
+                if len(message.command) > 1 and "_" in message.command[1]:
+                    kk, file_id = message.command[1].split("_", 1)
+                    btn.append([
+                        InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
+                    ])
+                reply_markup = InlineKeyboardMarkup(btn)
+                photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
+                caption = script.FORCESUB_TXT.format(message.from_user.mention)
+                await message.reply_photo(
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return
 
-            except Exception as e:
-                logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
+        except Exception as e:
+            logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
 
         user_id = m.from_user.id
         if not await db.has_premium_access(user_id):
@@ -547,20 +549,20 @@ async def stream_buttons(user_id: int, file_id: str):
         return [
             [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
             [InlineKeyboardButton('ℹ️ ᴠɪᴇᴡ ᴀᴜᴅɪᴏ & ꜱᴜʙꜱ ɪɴꜰᴏ ℹ️', callback_data=f'extract_data:{file_id}')],
-           # [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
+            [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
         ]
     elif STREAM_MODE and PREMIUM_STREAM_MODE:
         if not await db.has_premium_access(user_id):
             return [
                 [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data='prestream')],
                 [InlineKeyboardButton('ℹ️ ᴠɪᴇᴡ ᴀᴜᴅɪᴏ & ꜱᴜʙꜱ ɪɴꜰᴏ ℹ️', callback_data='prestream')],
-                #[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
+                [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
             ]
         else:
             return [
                 [InlineKeyboardButton('🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ / ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🖥️', callback_data=f'generate_stream_link:{file_id}')],
                 [InlineKeyboardButton('ℹ️ ᴠɪᴇᴡ ᴀᴜᴅɪᴏ & ꜱᴜʙꜱ ɪɴꜰᴏ ℹ️', callback_data=f'extract_data:{file_id}')],
-               # [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
+                [InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]
             ]
     else:
         return [[InlineKeyboardButton('📌 ᴊᴏɪɴ ᴜᴘᴅᴀᴛᴇꜱ ᴄʜᴀɴɴᴇʟ 📌', url=UPDATE_CHNL_LNK)]]

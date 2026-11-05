@@ -68,32 +68,38 @@ class temp(object):
     VERIFICATIONS = LimitedDict(maxsize=300)
     TEMP_INVITE_LINKS = LimitedDict(maxsize=200)
     REQ_LINKS = LimitedDict(maxsize=200)
-    FSUB_CACHE = LimitedDict(maxsize=2000)
+    # NOTE: there used to be an FSUB_CACHE here (5 min) plus a permanent
+    # DB join-request record used as proof of membership. Both are gone on
+    # purpose: force-sub is now checked LIVE on every file access, so a
+    # user who leaves a channel is caught on the next access, not 5 min
+    # later — or never, as the DB record used to allow.
+
+
+# A user counts as joined only with one of these statuses. LEFT / KICKED /
+# BANNED must NOT count: get_chat_member() returns a member object for a
+# user who left (status LEFT) instead of raising, so merely getting a
+# member back used to pass the check.
+_JOINED_STATUSES = (
+    enums.ChatMemberStatus.MEMBER,
+    enums.ChatMemberStatus.ADMINISTRATOR,
+    enums.ChatMemberStatus.OWNER,
+    enums.ChatMemberStatus.RESTRICTED,
+)
 
 
 async def is_req_subscribed(client, user_id, rqfsub_channels):
     btn = []
 
     async def check_req_channel(ch_id):
-        try:
-            cid = int(ch_id)
-        except Exception:
-            cid = ch_id
-        cache_key = (int(user_id), cid)
-        cached_time = temp.FSUB_CACHE.get(cache_key)
-        if cached_time and (time.time() - cached_time) < 300:
-            return None
-        if await db.has_joined_channel(user_id, ch_id):
-            temp.FSUB_CACHE[cache_key] = time.time()
-            return None
+        # Live check every time: do NOT trust the permanent DB join-request
+        # record (db.has_joined_channel) — it only proves the user once
+        # sent a join request, not that they are still a member.
         try:
             member = await client.get_chat_member(ch_id, user_id)
-            if member.status != enums.ChatMemberStatus.BANNED:
+            if member.status in _JOINED_STATUSES:
                 await db.add_join_req(user_id, ch_id)
-                temp.FSUB_CACHE[cache_key] = time.time()
                 return None
         except UserNotParticipant:
-            temp.FSUB_CACHE.pop(cache_key, None)
             pass
         except Exception as e:
             logger.error(f"Error checking membership in {ch_id}: {e}")
@@ -128,30 +134,25 @@ async def is_req_subscribed(client, user_id, rqfsub_channels):
 
 async def is_subscribed(client, user_id, fsub_channels):
     btn = []
-    
+
     async def check_channel(channel_id):
+        # Live check every time: no 5-minute FSUB_CACHE. A user who joins,
+        # passes, then leaves must be caught on the very next file access.
         try:
-            cid = int(channel_id)
-        except Exception:
-            cid = channel_id
-        cache_key = (int(user_id), cid)
-        cached_time = temp.FSUB_CACHE.get(cache_key)
-        if cached_time and (time.time() - cached_time) < 300:
-            return None
-        try:
-            # No need to get chat object separately
-            await client.get_chat_member(channel_id, user_id)
-            temp.FSUB_CACHE[cache_key] = time.time()
+            member = await client.get_chat_member(channel_id, user_id)
+            if member.status in _JOINED_STATUSES:
+                return None
         except UserNotParticipant:
-            temp.FSUB_CACHE.pop(cache_key, None)
-            try:
-                chat = await client.get_chat(int(channel_id))
-                invite_link = await client.create_chat_invite_link(channel_id)
-                return InlineKeyboardButton(f"📢 Join {chat.title}", url=invite_link.invite_link)
-            except Exception as e:
-                logger.warning(f"Failed to create invite for {channel_id}: {e}")
+            pass
         except Exception as e:
             logger.exception(f"is_subscribed error for {channel_id}: {e}")
+            return None
+        try:
+            chat = await client.get_chat(int(channel_id))
+            invite_link = await client.create_chat_invite_link(channel_id)
+            return InlineKeyboardButton(f"📢 Join {chat.title}", url=invite_link.invite_link)
+        except Exception as e:
+            logger.warning(f"Failed to create invite for {channel_id}: {e}")
         return None
 
     tasks = [check_channel(channel_id) for channel_id in fsub_channels]
@@ -160,7 +161,7 @@ async def is_subscribed(client, user_id, fsub_channels):
     for button in results:
         if button:
             btn.append([button])
-            
+
     return btn
 
 async def is_check_admin(client, chat_id, user_id):

@@ -379,7 +379,7 @@ async def advantage_spoll_choker(client, query):
             except Exception as e:
                 logger.error("Error In Spol: %s — Make Sure Bot Admin BIN CHANNEL", e)
         btn = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🔰Cʟɪᴄᴋ ʜᴇʀᴇ & ʀᴇǫᴜᴇsᴛ ᴛᴏ ᴀᴅᴍɪɴ🔰", url=GRP_LNK)]])
+            [[InlineKeyboardButton("🔰Cʟɪᴄᴋ ʜᴇʀᴇ & ʀᴇǫᴜᴇsᴛ ᴛᴏ ᴀᴅᴍɪɴ🔰", url=OWNER_LNK)]])
         k = await query.message.edit(script.MVE_NT_FND, reply_markup=btn)
         await asyncio.sleep(10)
         await k.delete()
@@ -1133,6 +1133,31 @@ async def cb_handler(client: Client, query: CallbackQuery):
         _, file_id = DreamxData.split(":")
         try:
             user_id = query.from_user.id
+            # Live force-sub check here too, for everyone (premium included):
+            # a user who got the file, then left a channel, must not get a
+            # fresh stream/download link without rejoining. Global channels
+            # only — this callback carries no group id for custom fsub.
+            _fsub_btn = []
+            if AUTH_CHANNELS and AUTH_REQ_CHANNELS:
+                _r1, _r2 = await asyncio.gather(
+                    is_subscribed(client, user_id, AUTH_CHANNELS),
+                    is_req_subscribed(client, user_id, AUTH_REQ_CHANNELS),
+                )
+                _fsub_btn += _r1 + _r2
+            elif AUTH_CHANNELS:
+                _fsub_btn += await is_subscribed(client, user_id, AUTH_CHANNELS)
+            elif AUTH_REQ_CHANNELS:
+                _fsub_btn += await is_req_subscribed(client, user_id, AUTH_REQ_CHANNELS)
+            if _fsub_btn:
+                await query.answer(
+                    "🛑 You have not joined all required update channels. Please join each one and try again.",
+                    show_alert=True,
+                )
+                try:
+                    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(_fsub_btn))
+                except Exception:
+                    pass
+                return
             # Daily stream-link limit: only a NEW generation counts; a repeat of the
             # same file the same day returns allowed=True without incrementing.
             if not await claim_daily_stream_link(user_id, file_id):
@@ -1269,7 +1294,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
     elif query.data == "about":
         buttons = [[
             InlineKeyboardButton('‼️ ᴅɪꜱᴄʟᴀɪᴍᴇʀ ‼️', callback_data='disclaimer'),
-           # InlineKeyboardButton ('🪔 sᴏᴜʀᴄᴇ', callback_data='source'),
+            InlineKeyboardButton ('🪔 sᴏᴜʀᴄᴇ', callback_data='source'),
         ],[
             InlineKeyboardButton('ᴅᴏɴᴀᴛɪᴏɴ 💰', callback_data='donation'),
         ],[
@@ -1319,7 +1344,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
 
     elif query.data == "source":
         buttons = [[
-       #     InlineKeyboardButton('ᴅʀᴇᴀᴍxʙᴏᴛᴢ 📜', url='https://github.com/DreamXBotz/Auto_Filter_Bot.git'),
+            InlineKeyboardButton('ᴅʀᴇᴀᴍxʙᴏᴛᴢ 📜', url='https://github.com/DreamXBotz/Auto_Filter_Bot.git'),
             InlineKeyboardButton('⇋ ʙᴀᴄᴋ ⇋', callback_data='about')
         ]]
         reply_markup = InlineKeyboardMarkup(buttons)
