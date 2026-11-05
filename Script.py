@@ -411,7 +411,6 @@ This Is An Open-Source Project. You Can Use It Freely, But Selling The Source Co
     
     VERIFICATION_TEXT = """<b><i>👋 ʜᴇʏ {},
 
-📌
 📌 ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴠᴇʀɪꜰɪᴇᴅ ᴛᴏᴅᴀʏ, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴏɴ ᴠᴇʀɪꜰʏ & ɢᴇᴛ Direct Files Aᴄᴄᴇꜱꜱ ꜰᴏʀ ᴛɪʟʟ ɴᴇxᴛ 12 hours,Direct Files..
 
 📌 shortner (verify token) లింక్ ఎలా ఓపన్ చేయాలి ఈ వీడియో చుడండి @ML_Files
