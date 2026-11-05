@@ -363,8 +363,12 @@ async def send_movie_update(client, base_name):
             text = generate_movie_message(movie_doc, base_name)
             buttons = InlineKeyboardMarkup([[
                 InlineKeyboardButton(
-                    'ɢᴇᴛ ғɪʟᴇs',
-                    url=f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}"
+                    '𝗚𝗲𝘁 𝗙𝗶𝗹𝗲𝘀 -𝗕𝗼𝘁 1',
+                url=f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}", style=enums.ButtonStyle.PRIMARY
+            ),
+            InlineKeyboardButton(
+            '𝗚𝗲𝘁 𝗙𝗶𝗹𝗲𝘀 -𝗕𝗼𝘁 2',
+            url=f"https://t.me/mawamoviesbot?start=getfile-{base_name.replace(' ', '-')}", style=enums.ButtonStyle.SUCCESS
                 )
             ]])
             size=(2560, 1440) if LANDSCAPE_POSTER and TMDB_POSTER and movie_doc.get("is_backdrop") and not movie_doc.get("error_tmdb") else (853, 1280)
@@ -424,9 +428,13 @@ async def update_movie_message(client, base_name):
         text = generate_movie_message(movie_doc, base_name)
         buttons = InlineKeyboardMarkup([[
             InlineKeyboardButton(
-                'ɢᴇᴛ ғɪʟᴇs',
-                url=f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}"
-            )
+                '𝗚𝗲𝘁 𝗙𝗶𝗹𝗲𝘀 -𝗕𝗼𝘁 1',
+                url=f"https://t.me/{temp.U_NAME}?start=getfile-{base_name.replace(' ', '-')}", style=enums.ButtonStyle.PRIMARY
+            ),
+            InlineKeyboardButton(
+            '𝗚𝗲𝘁 𝗙𝗶𝗹𝗲𝘀 -𝗕𝗼𝘁 2',
+            url=f"https://t.me/mawamoviesbot?start=getfile-{base_name.replace(' ', '-')}", style=enums.ButtonStyle.SUCCESS
+                )
         ]])
 
         message_id = movie_doc.get("message_id")
