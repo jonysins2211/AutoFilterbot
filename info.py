@@ -85,13 +85,13 @@ UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/Movie_Loverzz')
 # 3. DATABASE CONFIGURATION (MongoDB)
 # ==============================================================================
 # Primary MongoDB Connection URI & Database details
-DATABASE_URI = environ.get('DATABASE_URI', '')
-DATABASE_NAME = environ.get('DATABASE_NAME', 'Cluster0')
+DATABASE_URI = environ.get('DATABASE_URI', 'mongodb+srv://cluster:rdYi5Ag9JCjYA11T@cluster0.efj5n.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+DATABASE_NAME = environ.get('DATABASE_NAME', 'clusterr')
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'dreamcinezone_files')
 
 # Secondary MongoDB for multiple DB load balancing
-MULTIPLE_DB = is_enabled(os.environ.get('MULTIPLE_DB', "False"), False)
-DATABASE_URI2 = environ.get('DATABASE_URI2', '')
+MULTIPLE_DB = is_enabled(os.environ.get('MULTIPLE_DB', "True"), False)
+DATABASE_URI2 = environ.get('DATABASE_URI2', 'mongodb+srv://cluster:yZ8tvosjuklgz4VG@cluster0.vybst.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 
 # Fallback to primary database if multiple DB mode is disabled
 if not MULTIPLE_DB:
@@ -135,8 +135,8 @@ INDEX_CAPTION = is_enabled(environ.get('SAVE_CAPTION', "True"), True)
 COVERX = is_enabled(environ.get('COVERX', "True"), True)
 PROTECT_CONTENT = is_enabled(environ.get('PROTECT_CONTENT', "False"), False)
 PM_SEARCH = is_enabled(environ.get('PM_SEARCH', "True"), True)
-EMOJI_MODE = is_enabled(environ.get('EMOJI_MODE', "True"), True)
-BUTTON_MODE = is_enabled(environ.get('BUTTON_MODE', "False"), False)
+EMOJI_MODE = is_enabled(environ.get('EMOJI_MODE', "False"), True)
+BUTTON_MODE = is_enabled(environ.get('BUTTON_MODE', "True"), False)
 P_TTI_SHOW_OFF = is_enabled(environ.get('P_TTI_SHOW_OFF', "False"), False)
 MAX_BTN = is_enabled(environ.get('MAX_BTN', "True"), True)
 NO_RESULTS_MSG = is_enabled(environ.get("NO_RESULTS_MSG", "True"), True)
