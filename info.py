@@ -28,8 +28,8 @@ def is_enabled(value, default: bool = False) -> bool:
 # 1. BOT CREDENTIALS & SESSION
 # ==============================================================================
 # Telegram API credentials from https://my.telegram.org
-API_ID = int(environ.get('API_ID', ''))
-API_HASH = environ.get('API_HASH', '')
+API_ID = int(environ.get('API_ID', '29199389'))
+API_HASH = environ.get('API_HASH', 'fe79e4a0987827275a9c411c6d3aea7e')
 
 # Bot token obtained from @BotFather
 BOT_TOKEN = environ.get('BOT_TOKEN', '')
@@ -207,9 +207,9 @@ LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-1002134871596'))
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://telegra.ph/file/9ecc5d6e4df5b83424896.jpg")
 
 # Tutorial Links
-TUTORIAL = environ.get("TUTORIAL", "https://t.me/ML_FILES/37")
-TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/ML_FILES/37")
-TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/ML_FILES/37")
+TUTORIAL = environ.get("TUTORIAL", "https://t.me/ML_FILES/38")
+TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/ML_FILES/38")
+TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/ML_FILES/38")
 
 # Primary Shortener
 SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", "Liteshort.com")
@@ -224,7 +224,7 @@ SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", "lightshort.com")
 SHORTENER_API3 = environ.get("SHORTENER_API3", "a78d35de43daf72a9e4a5b6c01b91a89da57aff5")
 
 # Verification Time Gaps (in seconds)
-TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "1200"))       # 20 minutes
+TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "43200"))       # 20 minutes
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "54000"))   # 15 hours
 
 
