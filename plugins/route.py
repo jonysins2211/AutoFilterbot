@@ -369,10 +369,12 @@ async def media_streamer(request: web.Request, id: int, secure_hash: str):
             mime_type = "application/octet-stream"
             file_name = f"{secrets.token_hex(2)}.unknown"
     
+    is_download = request.rel_url.query.get("download") == "1"
+    disposition = "attachment" if is_download else "inline"
     resp_headers = {
         "Content-Type": f"{mime_type}",
         "Content-Length": str(req_length),
-        "Content-Disposition": f'inline; filename="{file_name}"',
+        "Content-Disposition": f'{disposition}; filename="{file_name}"',
         "Accept-Ranges": "bytes",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
