@@ -28,8 +28,8 @@ def is_enabled(value, default: bool = False) -> bool:
 # 1. BOT CREDENTIALS & SESSION
 # ==============================================================================
 # Telegram API credentials from https://my.telegram.org
-API_ID = int(environ.get('API_ID', ''))
-API_HASH = environ.get('API_HASH', '')
+API_ID = int(environ.get('API_ID', '29199389'))
+API_HASH = environ.get('API_HASH', 'fe79e4a0987827275a9c411c6d3aea7e')
 
 # Bot token obtained from @BotFather
 BOT_TOKEN = environ.get('BOT_TOKEN', '')
@@ -50,8 +50,8 @@ ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in environ
 CHANNELS = [int(ch) if id_pattern.search(ch) else ch for ch in environ.get('CHANNELS', '-1002203356678 -1002210834805 -1001176901973').split()]
 
 # Logging & Storage Channels
-LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '-1002134871596'))            # General activity & error logs
-BIN_CHANNEL = int(environ.get('BIN_CHANNEL', '-1002134871596'))            # File storage / binary cache channel
+LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '-1002819191904'))            # General activity & error logs
+BIN_CHANNEL = int(environ.get('BIN_CHANNEL', '-1002819191904'))            # File storage / binary cache channel
 PREMIUM_LOGS = int(environ.get('PREMIUM_LOGS', '-1003703572230'))          # Premium subscription logs
 DELETE_CHANNELS = [int(dch) if id_pattern.search(dch) else dch for dch in environ.get('DELETE_CHANNELS', '-100').split()]
 
@@ -66,7 +66,7 @@ INDEX_REQ_CHANNEL = int(environ.get('INDEX_REQ_CHANNEL', LOG_CHANNEL))
 
 # Force Subscription Channels (Users must join these before using the bot)
 auth_req_channels = environ.get("AUTH_REQ_CHANNELS", "-1002237171878")
-auth_channels = environ.get("AUTH_CHANNELS", "-1002918900365 -1001948532295")
+auth_channels = environ.get("AUTH_CHANNELS", "-1002918900365 -1001547011153")
 AUTH_REQ_CHANNELS = [int(ch) for ch in auth_req_channels.split() if ch and id_pattern.match(ch)]
 AUTH_CHANNELS = [int(ch) for ch in auth_channels.split() if ch and id_pattern.match(ch)]
 
@@ -85,9 +85,9 @@ UPDATE_CHNL_LNK = environ.get('UPDATE_CHNL_LNK', 'https://t.me/Movie_Loverzz')
 # 3. DATABASE CONFIGURATION (MongoDB)
 # ==============================================================================
 # Primary MongoDB Connection URI & Database details
-DATABASE_URI = environ.get('DATABASE_URI', '')
+DATABASE_URI = environ.get('DATABASE_URI', 'mongodb+srv://rocketboy:7wx1Xh0zl4TCxNCt@cluster0.elksrrk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
 DATABASE_NAME = environ.get('DATABASE_NAME', 'Cluster0')
-COLLECTION_NAME = environ.get('COLLECTION_NAME', 'dreamcinezone_files')
+COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Safaribotts')
 
 # Secondary MongoDB for multiple DB load balancing
 MULTIPLE_DB = is_enabled(os.environ.get('MULTIPLE_DB', "False"), False)
@@ -135,7 +135,7 @@ INDEX_CAPTION = is_enabled(environ.get('SAVE_CAPTION', "True"), True)
 COVERX = is_enabled(environ.get('COVERX', "True"), True)
 PROTECT_CONTENT = is_enabled(environ.get('PROTECT_CONTENT', "False"), False)
 PM_SEARCH = is_enabled(environ.get('PM_SEARCH', "True"), True)
-EMOJI_MODE = is_enabled(environ.get('EMOJI_MODE', "True"), True)
+EMOJI_MODE = is_enabled(environ.get('EMOJI_MODE', "False"), True)
 BUTTON_MODE = is_enabled(environ.get('BUTTON_MODE', "False"), False)
 P_TTI_SHOW_OFF = is_enabled(environ.get('P_TTI_SHOW_OFF', "False"), False)
 MAX_BTN = is_enabled(environ.get('MAX_BTN', "True"), True)
@@ -184,8 +184,8 @@ BAD_WORDS = {
 # ==============================================================================
 # 6. MOVIE UPDATES & POSTER NOTIFICATIONS
 # ==============================================================================
-MOVIE_UPDATE_NOTIFICATION = is_enabled(environ.get('MOVIE_UPDATE_NOTIFICATION', "False"), False)
-MOVIE_UPDATE_CHANNEL = int(environ.get('MOVIE_UPDATE_CHANNEL', '-100'))
+MOVIE_UPDATE_NOTIFICATION = is_enabled(environ.get('MOVIE_UPDATE_NOTIFICATION', "True"), False)
+MOVIE_UPDATE_CHANNEL = int(environ.get('MOVIE_UPDATE_CHANNEL', '-1002207550488'))
 DREAMXBOTZ_IMAGE_FETCH = is_enabled(environ.get('DREAMXBOTZ_IMAGE_FETCH', "True"), True)
 LINK_PREVIEW = is_enabled(environ.get('LINK_PREVIEW', "False"), False)
 ABOVE_PREVIEW = is_enabled(environ.get('ABOVE_PREVIEW', "True"), True)
@@ -203,7 +203,7 @@ LANDSCAPE_POSTER = is_enabled(environ.get('LANDSCAPE_POSTER', "True"), True)
 # 7. SHORTENERS & VERIFICATION SYSTEM
 # ==============================================================================
 IS_VERIFY = is_enabled(environ.get('IS_VERIFY', 'True'), False)
-LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-1002134871596'))
+LOG_VR_CHANNEL = int(environ.get('LOG_VR_CHANNEL', '-1002819191904'))
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://telegra.ph/file/9ecc5d6e4df5b83424896.jpg")
 
 # Tutorial Links
